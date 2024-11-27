@@ -1,0 +1,45 @@
+{:paths ["src"]
+ :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+ :deps {org.clojure/clojure                         {:mvn/version "1.12.0"}
+        cheshire/cheshire                           {:mvn/version "5.10.2"}
+        clj-commons/clj-yaml                        {:mvn/version "0.7.106"}
+        org.postgresql/postgresql                   {:mvn/version "42.5.4"}
+        com.zaxxer/HikariCP                         {:mvn/version "6.2.1"}
+        com.github.seancorfield/next.jdbc           {:mvn/version "1.2.780"}
+        com.fasterxml.jackson.core/jackson-core     {:mvn/version "2.13.5"}
+        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.5"}
+        healthsamurai/dsql                          {:git/url "https://github.com/HealthSamurai/dsql.git"
+                                                     :sha "7e1564ee0bc24ca3fd6a3ddd39b6ddb93becfcde"}
+        healthsamurai/matcho                        {:mvn/version "0.3.8"}
+
+        context/schema {:git/url "https://github.com/context-clj/system.git"
+                        :sha "c5860afcddd0755293eb84a466f610a00b4b7146"}}
+
+ :aliases
+ {:dev
+  {:extra-paths ["dev" "test" "resources" "shadow-target/shadow/dev" "shadow-target/stylo/dev"]
+   :jvm-opts ["-Dclojure.compiler.direct-linking=true"
+              "-XX:MaxDirectMemorySize=16g" "-XX:+UseLargePages"
+              "--add-opens=java.base/java.nio=ALL-UNNAMED"
+              "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
+              "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"]}
+  :nrepl
+  {:extra-paths ["test"]
+   :extra-deps  {cider/cider-nrepl {:mvn/version "LATEST"}}
+   ;; :jvm-opts ^:replace ["-XX:-OmitStackTraceInFastThrow" "-Djdk.attach.allowAttachSelf"]
+   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+
+   :main-opts   ["-m" "nrepl.cmdline"
+                 "-b" "0.0.0.0"
+                 "--middleware"
+                 "[cider.nrepl/cider-middleware]"]}
+
+  :kaocha
+  {:extra-deps {lambdaisland/kaocha {:mvn/version "1.77.1236"}}
+   :extra-paths ["test"]
+   :jvm-opts   ^:replace ["-XX:-OmitStackTraceInFastThrow"]
+   :main-opts  ["-m" "kaocha.runner"]}
+
+  :run {:extra-paths ["dev" "libs/zd/src" "libs/zd/test"]
+        :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"]
+        :main-opts   ["-m" "zd.hsm"]}}}

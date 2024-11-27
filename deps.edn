@@ -17,7 +17,7 @@
 
  :aliases
  {:dev
-  {:extra-paths ["dev" "test" "resources" "shadow-target/shadow/dev" "shadow-target/stylo/dev"]
+  {:extra-paths ["dev" "test" "resources"]
    :jvm-opts ["-Dclojure.compiler.direct-linking=true"
               "-XX:MaxDirectMemorySize=16g" "-XX:+UseLargePages"
               "--add-opens=java.base/java.nio=ALL-UNNAMED"

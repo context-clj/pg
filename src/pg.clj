@@ -66,19 +66,12 @@
   (->> (jdbc/execute! (datasource ctx) q)
        (mapv coerce)))
 
-;; (defn get-connection [opts]
-;;   (let [conn-string (str "jdbc:postgresql://"
-;;                          (get opts :host "localhost" )
-;;                          ":"(get opts :port 5432)
-;;                          "/" (get opts :database )
-;;                          "?stringtype=unspecified")]
-;;     (DriverManager/getConnection conn-string (:user opts) (:password opts))))
 
 
 (defn get-pool [conn]
   (let [^HikariConfig config (HikariConfig.)]
     (doto config
-      (.setJdbcUrl (str "jdbc:postgresql://" (:host conn) ":" (:port conn) "/" (:dbname conn)))
+      (.setJdbcUrl (str "jdbc:postgresql://" (:host conn) ":" (:port conn) "/" (:database conn)))
       (.setUsername (:user conn))
       (.setPassword (:password conn))
       (.setMaximumPoolSize 10)
@@ -168,9 +161,6 @@
 ;;       (get-connection (assoc c :database (:database config))))
 ;;     (get-connection config)))
 
-(defn default-connection []
-  (cheshire.core/parse-string (slurp "connection.json") keyword))
-
 #_(defn start [system & [opts]]
   (system/start-service
    system
@@ -199,7 +189,7 @@
 
 (system/defstart
   [context config]
-  (let [connection (or config (default-connection))
+  (let [connection config
         _ (system/info context ::connecting (:database connection) (dissoc connection :password))
         db (get-pool connection)]
     (jdbc/execute! db ["select 1"])
@@ -215,11 +205,18 @@
 
 (comment
 
-  (def conn (cheshire.core/parse-string (slurp "connection.json") keyword))
+  (def cfg {:host "localhost"
+            :port  5439
+            :database "fhirpackages"
+            :user "fhirpackages"
+            :password "secret"})
 
-  conn
+  (let [conn-string (str "jdbc:postgresql://" (get cfg :host) ":"(get cfg :port) "/" (get cfg :database) "?stringtype=unspecified")]
+    (println conn-string)
+    (DriverManager/getConnection conn-string (:user cfg) (:password cfg)))
 
-  (def context (system/start-system {:services ["pg"] :pg conn}))
+
+  (def context (system/start-system {:services ["pg"] :pg cfg}))
 
   (system/stop-system context)
 

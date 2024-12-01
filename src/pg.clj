@@ -183,6 +183,7 @@
    :config
    {:port      {:type "integer" :default 5432 :validator pos-int?}
     :host      {:type "string"  :required true}
+    :user      {:type "string"  :required true}
     :database  {:type "string"  :required true}
     :password  {:type "string"  :sensitive true :required true}
     :pool-size {:type "integer" :default 5 :validator pos-int?}}})
@@ -205,42 +206,5 @@
 
 (comment
 
-  (def cfg {:host "localhost"
-            :port  5439
-            :database "fhirpackages"
-            :user "fhirpackages"
-            :password "secret"})
-
-  (let [conn-string (str "jdbc:postgresql://" (get cfg :host) ":"(get cfg :port) "/" (get cfg :database) "?stringtype=unspecified")]
-    (println conn-string)
-    (DriverManager/getConnection conn-string (:user cfg) (:password cfg)))
-
-
-  (def context (system/start-system {:services ["pg"] :pg cfg}))
-
-  (system/stop-system context)
-
-  (execute! context ["select 1"])
-  (execute! context ["create table if not exists test  (resoruce jsonb)"])
-
-  (dotimes [i 20]
-    (copy context "copy test (resource) FROM STDIN csv quote e'\\x01' delimiter e'\\t'"
-          (fn [w]
-            (doseq [i (range 100)]
-              (w (cheshire.core/generate-string {:a i}))))))
-
-  (execute! context ["select count(*) from test"])
-
-  context
-
-  (execute! context ["truncate test"])
-
-  (dotimes [i 100]
-    (fetch context ["select resource from test"] 100 "resource" (fn [x i] (print "."))))
-
-
-  (execute! context ["select count(*) from test"])
-  (execute! context ["truncate test"])
-  (copy-ndjson context "test" (fn [w] (doseq [i (range 100)] (w {:i i}))))
 
   )

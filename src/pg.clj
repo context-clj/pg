@@ -122,6 +122,21 @@
     (copy-ndjson-stream ctx "_resource" gzip-stream)))
 
 (def ^bytes NEW_LINE (.getBytes "\n"))
+(def ^bytes TAB (.getBytes "\t"))
+
+(defn load [ctx sql cb]
+  (with-open [^Connection c (connection ctx)]
+    (let [^CopyManager cm (CopyManager. (.unwrap ^Connection c PGConnection))
+          ^CopyIn ci (.copyIn cm sql)
+          write-column   (fn wr [^String s]
+                           (let [^bytes bt (.getBytes s)]
+                             (.writeToCopy ci bt 0 (count bt))))
+          write-new-line (fn wr [] (.writeToCopy ci NEW_LINE 0 1))
+          write-tab      (fn wr [] (.writeToCopy ci TAB 0 1))]
+      (try
+        (cb write-column write-tab write-new-line)
+        (finally
+          (.endCopy  ci))))))
 
 (defn copy [ctx sql cb]
   (with-open [^Connection c (connection ctx)]
@@ -147,6 +162,8 @@
                     (.writeToCopy ci NEW_LINE 0 1)))]
       (try (cb write)
            (finally (.endCopy  ci))))))
+
+
 
 #_(defmacro load-data [ctx writers & rest]
     (println :? writers)

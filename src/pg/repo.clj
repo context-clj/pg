@@ -2,7 +2,8 @@
   (:require [system]
             [cheshire.core]
             [pg]
-            [pg.repo.table]))
+            [pg.repo.table]
+            [clojure.string :as str]))
 
 
 (system/defmanifest
@@ -69,6 +70,9 @@
                                (assoc cols col-name (column-definition col-def))) {}))}
     (:primary-key table-def)
     (assoc-in [:constraint :primary-key] (:primary-key table-def))))
+
+(defn drop-repo [context {table :table}]
+  (assert false "TODO"))
 
 ;;TODO: check that it already exists
 (defn register-repo [context table-def]
@@ -146,9 +150,9 @@
                  (assoc acc k [:= k [:pg/param v]]))
                {})))
 
-(defn select [context {table :table where :where match :match}]
+(defn select [context {table :table where :where match :match order-by :order-by limit :limit}]
   (let [where (or where (match-to-where match))]
-    (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where}})
+    (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where :order-by order-by :limit limit}})
          (mapv process-resource))))
 
 (defn read [context {table :table match :match :as opts}]
@@ -163,13 +167,33 @@
 
 (defn delete [context {table :table where :where match :match}]
   (assert (and table (seq (or where match))))
-  (->>
-   (pg/execute! context {:dsql (delete-dsql table where match)})
-   (mapv process-resource)))
+  (->> (pg/execute! context {:dsql (delete-dsql table where match)})
+       (mapv process-resource)))
 
+;; TODO: fix sql injection
+(defn truncate [context {table :table}]
+  (pg/execute! context {:sql (str "TRUNCATE " table)}))
 
 (defn load [context {table :table} f]
-  )
+  (let [table-def (get-table-definition context table)
+        columns (keys (:columns table-def))
+        columns-resource (keys (dissoc (:columns table-def) :resource))
+        sql (str "COPY " (:table table-def) "( " (->> columns (mapv name) (str/join ",")) " )  FROM STDIN csv quote e'\\x01' delimiter e'\\t'" )]
+    (system/info context ::copy sql)
+    (pg/load context sql
+             (fn [w wt wnl]
+               (let [wr (fn [res]
+                          (loop [[c & cs] columns]
+                            (if c
+                              (do
+                                (if (= :resource c)
+                                  (w (cheshire.core/generate-string (apply dissoc res columns-resource)))
+                                  (when-let [v (get res c)]
+                                    (w (str v))))
+                                  (when (seq cs) (wt))
+                                  (recur cs))
+                              (wnl))))]
+                 (f wr))))))
 
 
 

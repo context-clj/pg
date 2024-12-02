@@ -104,11 +104,27 @@
      (pg.repo/select context {:table "patient" :match {:id "pt-1"}})
      [{:id "pt-1", :name "changed" :extra 1}])
 
+    (pg.repo/truncate context {:table "patient"})
+
     (pg.repo/load
      context {:table "patient"}
      (fn [insert]
        (doseq [i (range 10)]
          (insert {:id (str "r-" i) :name (str "pt-" i)}))))
+
+    (matcho/match
+     (pg.repo/select context {:table "patient" :order-by :id})
+     [{:id "r-0", :name "pt-0"}
+      {:id "r-1", :name "pt-1"}
+      {:id "r-2", :name "pt-2"}
+      {:id "r-3", :name "pt-3"}
+      {:id "r-4", :name "pt-4"}
+      {:id "r-5", :name "pt-5"}
+      {:id "r-6", :name "pt-6"}
+      {:id "r-7", :name "pt-7"}
+      {:id "r-8", :name "pt-8"}
+      {:id "r-9", :name "pt-9"}])
+
     )
 
 

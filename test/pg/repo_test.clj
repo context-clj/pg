@@ -26,66 +26,91 @@
   (ensure-context)
   context
 
-  (pg/execute! context {:sql "drop table if exists repo_test"})
+  (t/testing "test work with existing table"
+    (pg/execute! context {:sql "drop table if exists repo_test"})
 
-  (pg/execute! context {:sql "create table if not exists repo_test (id text primary key, ts timestamptz default current_timestamp, resource jsonb)"})
+    (pg/execute! context {:sql "create table if not exists repo_test (id text primary key, ts timestamptz default current_timestamp, name text)"})
 
-  (pg.repo/get-table-definition context "repo_test")
+    (pg.repo/get-table-definition context "repo_test")
 
-  (pg.repo/valid-table-defintion? (pg.repo/get-table-definition context "repo_test"))
+    (pg.repo/valid-table-defintion? (pg.repo/get-table-definition context "repo_test"))
 
-  (pg.repo/build-insert (pg.repo/get-table-definition context "repo_test") {:id "id" :name "name"})
+    (pg.repo/build-insert (pg.repo/get-table-definition context "repo_test") {:id "id" :name "name"})
 
-  (matcho/match
-   (pg.repo/insert context {:table "repo_test" :resource {:id "r1" :name "name"}})
-   {:id "r1", :ts #(not (nil? %)) :resource {:name "name"}})
+    (matcho/match
+     (pg.repo/insert context {:table "repo_test" :resource {:id "r1" :name "name"}})
+     {:id "r1", :ts #(not (nil? %)) :name "name"})
 
-  (pg.repo/insert context {:table "repo_test" :resource {:id "r2" :name "name" :something "else"}})
-  (pg.repo/upsert context {:table "repo_test" :resource {:id "r2" :name "updated" :something "else"}})
-  (pg.repo/delete context {:table "repo_test" :match {:id "r2"}})
+    (pg.repo/insert context {:table "repo_test" :resource {:id "r2" :name "name" :something "else"}})
 
-  (pg.repo/select context {:table "repo_test" :match {:id "r1"}})
+    (matcho/match
+     (pg.repo/upsert context {:table "repo_test" :resource {:id "r2" :name "updated"}})
+     {:id "r2", :ts #(not (nil? %)) :name "updated"})
 
-  (matcho/match
-   (pg.repo/select context {:table "repo_test" :where [:= :id "r1"]})
-   [{:id "r1", :resource {:name "name"}}])
+    (pg.repo/select context {:table "repo_test" :match {:id "r1"}})
 
-  (matcho/match
-   (pg.repo/select context {:table "repo_test" :match {:id "r1"}})
-   [{:id "r1", :resource {:name "name"}}])
+    (matcho/match
+     (pg.repo/select context {:table "repo_test" :where [:= :id "r2"]})
+     [{:id "r2", :name "updated"} nil?])
 
-  (pg.repo/table-dsql {:table "patient"
-                       :primary-key [:id]
-                       :columns {:id {:type tps/text}
-                                 :resource {:type tps/jsonb}}})
+    (matcho/match
+     (pg.repo/delete context {:table "repo_test" :match {:id "r2"}})
+     [{:id "r2"} nil?])
 
-  (pg.repo/register-repo
-   context {:table "patient"
-            :primary-key [:id]
-            :defaults true
-            :columns {:id {:type tps/text}
-                      :resource {:type tps/jsonb}}})
+    (matcho/match
+     (pg.repo/select context {:table "repo_test"})
+     [{:id "r1"} nil?])
 
-  (matcho/match
-   (pg.repo/get-table-definition context "patient")
-   {:table "patient"
-    :primary-key [:id]
-    :columns {:id {:type "text"}
-              :resource {:type "jsonb"}}})
+    (matcho/match
+     (pg.repo/select context {:table "repo_test"})
+     [{:id "r1", :name "name"} nil?])
 
-  (matcho/match
-   (pg.repo/upsert context {:table "patient" :resource {:id "pt-1" :name "name"}})
-   {:id "pt-1", :resource {:name "name"}})
+    )
 
-  (matcho/match
-   (pg.repo/upsert context {:table "patient" :resource {:id "pt-1" :name "changed"}})
-   {:id "pt-1", :resource {:name "changed"}})
+  (t/testing "repo"
 
-  (pg.repo/load
-   context {:table "patient"}
-   (fn [insert]
-     (doseq [i (range 100)]
-       (insert {:id (str "r-" i) :name (str "pt-" i)}))))
+    (pg.repo/table-dsql
+     {:table "patient"
+      :primary-key [:id]
+      :columns {:id       {:type tps/text}
+                :resource {:type tps/jsonb}}})
+
+    (pg.repo/register-repo
+     context {:table "patient"
+              :primary-key [:id]
+              :defaults true
+              :columns {:id {:type tps/text}
+                        :resource {:type tps/jsonb}}})
+
+    (matcho/match
+     (pg.repo/get-table-definition context "patient")
+     {:table "patient"
+      :primary-key [:id]
+      :columns {:id {:type "text"}
+                :resource {:type "jsonb"}}})
+
+    (matcho/match
+     (pg.repo/upsert context {:table "patient" :resource {:id "pt-1" :name "name"}})
+     {:id "pt-1", :name "name"})
+
+
+    (pg.repo/upsert context {:table "patient" :resource {:id "pt-2" :name "name"}})
+
+    (matcho/match
+     (pg.repo/upsert context {:table "patient" :resource {:id "pt-1" :name "changed" :extra 1}})
+     {:id "pt-1", :name "changed" :extra 1})
+
+    (matcho/match
+     (pg.repo/select context {:table "patient" :match {:id "pt-1"}})
+     [{:id "pt-1", :name "changed" :extra 1}])
+
+    (pg.repo/load
+     context {:table "patient"}
+     (fn [insert]
+       (doseq [i (range 10)]
+         (insert {:id (str "r-" i) :name (str "pt-" i)}))))
+    )
+
 
 
   )

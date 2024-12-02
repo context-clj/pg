@@ -1,0 +1,21 @@
+name: test
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3.0.2
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - uses: DeLaGuardo/setup-clojure@12.1
+        with:
+          cli: latest
+      - run: docker-compose up -d
+      - run: clojure -M:kaocha

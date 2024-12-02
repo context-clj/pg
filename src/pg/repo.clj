@@ -75,69 +75,103 @@
   (pg.repo.table/assert table-def)
   (pg/execute! context {:dsql (table-dsql table-def)}))
 
-(defn build-insert-columns [table-def resource cols]
-  (-> (->> (dissoc (:columns table-def) :resource)
-           (sort-by :position)
-           (reduce (fn [acc [col-name _col-def]]
-                     (if-let [v (get resource col-name)]
-                       (assoc acc col-name [:pg/param v])
-                       acc)
-                     ) {}))
-      (assoc :resource [:pg/param (cheshire.core/generate-string (apply dissoc resource cols))])))
+(defn process-resource [resource]
+  (when resource
+    (if-let [res  (:resource resource)]
+      (merge (dissoc resource :resource) res)
+      resource)))
+
+(defn build-insert-columns [table-def resource]
+  (let [columns (:columns table-def)
+        resource? (:resource columns)
+        cols (keys (dissoc columns :resource))]
+    (-> (->> (dissoc columns :resource)
+             (sort-by :position)
+             (reduce (fn [acc [col-name _col-def]]
+                       (if-let [v (get resource col-name)]
+                         (assoc acc col-name [:pg/param v])
+                         acc))
+                     {}))
+        (cond->
+            (and resource? (= (:type resource?) "jsonb"))
+            (assoc :resource [:pg/param (cheshire.core/generate-string (apply dissoc resource cols))])))))
 
 ;; TODO: basic validation by table schema
 (defn build-insert [table-def resource]
-  (let [cols (into [] (disj (into #{} (keys (:columns table-def))) :resource))]
-    {:ql/type :pg/insert
-     :into (:table table-def)
-     :value (build-insert-columns table-def resource cols)
-     :returning :*}))
+  {:ql/type :pg/insert
+   :into (:table table-def)
+   :value (build-insert-columns table-def resource)
+   :returning :*})
 
 (defn insert [context {table :table resource :resource}]
   (let [table-def (get-table-definition context table)]
-    (-> (pg/execute! context {:dsql (build-insert table-def resource)})
+    (->> (pg/execute! context {:dsql (build-insert table-def resource)})
+        (mapv process-resource)
         first)))
 
 (defn build-update-columns [table-def resource]
-  (->> (:columns table-def)
-       (sort-by :position)
-       (reduce (fn [acc [col-name _col-def]]
-                 (if-not (nil? (get resource col-name))
-                   (assoc acc col-name (keyword (str "EXCLUDED." (name col-name))))
-                   acc)
-                 ) {:resource :EXCLUDED.resource})))
+  (let [columns (:columns table-def)
+        resource? (:resource columns)
+        update-map (cond-> {}
+                     (and resource? (= "jsonb" (:type resource?)))
+                     (assoc :resource :EXCLUDED.resource))]
+    (->> columns
+         (sort-by :position)
+         (reduce (fn [acc [col-name _col-def]]
+                   (if-not (nil? (get resource col-name))
+                     (assoc acc col-name (keyword (str "EXCLUDED." (name col-name))))
+                     acc)
+                   ) update-map))))
 
 ;; TODO: if no resource column skip resource logic
 ;; TODO: fail on extra columns
 (defn build-upsert [table-def resource]
-  (let [cols (into [] (disj (into #{} (keys (:columns table-def))) :resource))]
-    {:ql/type :pg/insert
-     :into (:table table-def)
-     :value (build-insert-columns table-def resource cols)
-     :on-conflict {:on (:primary-key table-def)
-                   :do {:set (build-update-columns table-def resource)}}
-     :returning :*}))
+  {:ql/type :pg/insert
+   :into (:table table-def)
+   :value (build-insert-columns table-def resource)
+   :on-conflict {:on (:primary-key table-def)
+                 :do {:set (build-update-columns table-def resource)}}
+   :returning :*})
 
 ;;TODO: add events
 (defn upsert [context {table :table resource :resource}]
   (let [table-def (get-table-definition context table)]
-    (-> (pg/execute! context {:dsql (build-upsert table-def resource)})
-        first)))
+    (->> (pg/execute! context {:dsql (build-upsert table-def resource)})
+         (mapv process-resource)
+         first)))
 
 (defn match-to-where [match]
-  )
+  (->> match
+       (reduce (fn [acc [k v]]
+                 (assoc acc k [:= k [:pg/param v]]))
+               {})))
+
+(defn select [context {table :table where :where match :match}]
+  (let [where (or where (match-to-where match))]
+    (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where}})
+         (mapv process-resource))))
+
+(defn read [context {table :table match :match :as opts}]
+  (-> (select context opts)
+      first))
+
+(defn delete-dsql [table where match]
+  {:ql/type :pg/delete
+   :from (keyword table)
+   :where (or where (match-to-where match))
+   :returning :*})
 
 (defn delete [context {table :table where :where match :match}]
-  )
+  (assert (and table (seq (or where match))))
+  (->>
+   (pg/execute! context {:dsql (delete-dsql table where match)})
+   (mapv process-resource)))
 
-(defn read [context {table :table match :match where :where}]
-  )
 
 (defn load [context {table :table} f]
   )
 
-(defn select [context {table :table where :where}]
-  (pg/execute! context {:dsql {:select :* :from (keyword table) :where where}}))
+
 
 
 ;; TODO cache table defs

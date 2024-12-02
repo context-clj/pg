@@ -2,6 +2,7 @@
   (:require [system]
             [pg.repo]
             [pg]
+            [pg.repo.types :as tps]
             [clojure.test :as t]
             [matcho.core :as matcho]))
 
@@ -55,14 +56,15 @@
 
   (pg.repo/table-dsql {:table "patient"
                        :primary-key [:id]
-                       :columns {:id {:type "text"}
-                                 :resource {:type "jsonb"}}})
+                       :columns {:id {:type tps/text}
+                                 :resource {:type tps/jsonb}}})
 
   (pg.repo/register-repo
    context {:table "patient"
             :primary-key [:id]
-            :columns {:id {:type "text"}
-                      :resource {:type "jsonb"}}})
+            :defaults true
+            :columns {:id {:type tps/text}
+                      :resource {:type tps/jsonb}}})
 
   (matcho/match
    (pg.repo/get-table-definition context "patient")

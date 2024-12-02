@@ -7,6 +7,7 @@
 
 (system/defmanifest
   {:description "basic CRUD"
+   :deps ["pg"]
    :define-event {::on-update {}
                   ::on-create {}
                   ::on-delete {}
@@ -122,6 +123,9 @@
   (let [table-def (get-table-definition context table)]
     (-> (pg/execute! context {:dsql (build-upsert table-def resource)})
         first)))
+
+(defn match-to-where [match]
+  )
 
 (defn delete [context {table :table where :where match :match}]
   )

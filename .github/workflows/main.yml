@@ -19,5 +19,4 @@ jobs:
       - uses: hoverkraft-tech/compose-action@v2.0.2
         with:
           compose-file: './docker-compose.yaml'
-      - run: docker-compose up -d
       - run: clojure -M:kaocha

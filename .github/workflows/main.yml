@@ -16,5 +16,6 @@ jobs:
       - uses: DeLaGuardo/setup-clojure@12.1
         with:
           cli: latest
+      - uses: adambirds/docker-compose-action@v1.5.0
       - run: docker-compose up -d
       - run: clojure -M:kaocha

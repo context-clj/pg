@@ -1,5 +1,24 @@
-# FHIR Artifact repository
+# context: pg
 
-## TODO:
+## pg
 
-* [ ] replace package:version with package@version
+* connection pool
+* execute
+* copy
+* fetch
+
+TODO:
+* create database
+* create table
+
+## pg.repo
+
+inspired by ruby on rails - i.e. take metadata from database
+
+* create repo
+* insert / update / upsert / delete
+* select
+* describe
+* indexes managment
+* views management
+* migrations

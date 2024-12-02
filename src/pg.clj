@@ -5,6 +5,7 @@
    [clojure.java.io :as io]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as rs]
+   [dsql.pg]
    [cheshire.core])
   (:import (java.sql Connection DriverManager)
            (java.io BufferedInputStream BufferedReader FileInputStream FileNotFoundException InputStream InputStreamReader)
@@ -49,10 +50,14 @@
   (with-open [^Connection conn (datasource ctx)]
     (f conn)))
 
-(defn execute! [ctx q]
-  (system/info ctx ::execute q)
-  (->> (jdbc/execute! (datasource ctx) q)
-       (mapv coerce)))
+;; TODO: hooks before sql and after to instrument - use open telemetry
+(defn execute! [ctx {sql :sql dql :dsql}]
+  (let [sql (cond (vector? sql) sql
+                  (string? sql) [sql]
+                  dql (dsql.pg/format dql))]
+    (system/info ctx ::execute sql)
+    (->> (jdbc/execute! (datasource ctx) sql)
+         (mapv coerce))))
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))
@@ -66,7 +71,16 @@
   (->> (jdbc/execute! (datasource ctx) q)
        (mapv coerce)))
 
-
+;; TODO: add params
+;; (def defaults
+;;   {:auto-commit        true
+;;    :read-only          false
+;;    :connection-timeout 30000
+;;    :validation-timeout 5000
+;;    :idle-timeout       600000
+;;    :max-lifetime       1800000
+;;    :minimum-idle       10
+;;    :maximum-pool-size  10})
 
 (defn get-pool [conn]
   (let [^HikariConfig config (HikariConfig.)]
@@ -79,6 +93,7 @@
       (.setIdleTimeout 300000)
       (.setConnectionTimeout 20000)
       (.addDataSourceProperty "cachePrepStmts" "true")
+      (.addDataSourceProperty "stringtype" "unspecified")
       (.addDataSourceProperty "prepStmtCacheSize" "250")
       (.addDataSourceProperty "prepStmtCacheSqlLimit" "2048"))
     (HikariDataSource. config)))

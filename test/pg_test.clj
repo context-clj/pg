@@ -14,12 +14,12 @@
   (def context (system/start-system {:services ["pg"] :pg cfg}))
 
   (matcho/match
-   (pg/execute! context ["select 1"])
+   (pg/execute! context {:sql "select 1"})
    [{:?column? 1}])
 
 
-  (pg/execute! context ["drop table if  exists test"])
-  (pg/execute! context ["create table if not exists test  (resource jsonb)"])
+  (pg/execute! context {:sql "drop table if  exists test"})
+  (pg/execute! context {:sql "create table if not exists test  (resource jsonb)"})
 
   (dotimes [i 20]
     (pg/copy context "copy test (resource) FROM STDIN csv quote e'\\x01' delimiter e'\\t'"
@@ -27,7 +27,7 @@
                (doseq [i (range 100)] (w (cheshire.core/generate-string {:a i}))))))
 
   (matcho/match
-   (pg/execute! context ["select count(*) from test"])
+   (pg/execute! context {:sql ["select count(*) from test"]})
    [{:count 2000}])
 
 

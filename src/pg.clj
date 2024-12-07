@@ -18,6 +18,8 @@
            [org.postgresql.util PGobject]))
 
 
+(defn json-parse [s]
+  (cheshire.core/parse-string s keyword))
 
 (set! *warn-on-reflection* true)
 
@@ -50,11 +52,14 @@
   (with-open [^Connection conn (datasource ctx)]
     (f conn)))
 
+(defn format-dsql [dql]
+  (dsql.pg/format dql))
+
 ;; TODO: hooks before sql and after to instrument - use open telemetry
 (defn execute! [ctx {sql :sql dql :dsql}]
   (let [sql (cond (vector? sql) sql
                   (string? sql) [sql]
-                  dql (dsql.pg/format dql))]
+                  dql (format-dsql dql))]
     (system/info ctx ::execute sql)
     (->> (jdbc/execute! (datasource ctx) sql)
          (mapv coerce))))
@@ -100,16 +105,18 @@
 
 
 (defn fetch [ctx sql-vector fetch-size field on-row]
-  (with-open [^Connection c (connection ctx)
-              ^PreparedStatement ps (jdbc/prepare c sql-vector)]
-    (.setFetchSize ps fetch-size)
-    (let [^ResultSet rs  (.executeQuery ps)]
-      (loop [i 0]
-        (if (.next rs)
-          (do
-            (on-row (.getString rs ^String field) i)
-            (recur (inc i)))
-          i)))))
+  (let [fld (name field)]
+    (system/info ctx ::fetch (first sql-vector))
+    (with-open [^Connection c (connection ctx)
+                ^PreparedStatement ps (jdbc/prepare c sql-vector)]
+      (.setFetchSize ps fetch-size)
+      (let [^ResultSet rs  (.executeQuery ps)]
+        (loop [i 0]
+          (if (.next rs)
+            (do
+              (on-row (.getString rs ^String fld) i)
+              (recur (inc i)))
+            i))))))
 
 (defn copy-ndjson-stream [ctx table ^InputStream stream & [jsonb-column]]
   (with-open [^Connection c (connection ctx)]

@@ -1,7 +1,7 @@
 (ns pg.repo.table
   (:require [clojure.spec.alpha :as s]))
 
-(def datatypes #{"text" "timestamptz" "jsonb"})
+(def datatypes #{"text" "timestamptz" "jsonb" "uuid"})
 (s/def ::type (s/and string? #(contains? datatypes %)))
 (s/def ::default string?)
 (s/def ::required boolean?)

@@ -72,7 +72,7 @@
     (assoc-in [:constraint :primary-key] (:primary-key table-def))))
 
 (defn drop-repo [context {table :table}]
-  (assert false "TODO"))
+  (pg/execute! context {:dsql {:ql/type :pg/drop-table :table-name table :if-exists true}}))
 
 ;;TODO: check that it already exists
 (defn register-repo [context table-def]
@@ -150,10 +150,29 @@
                  (assoc acc k [:= k [:pg/param v]]))
                {})))
 
-(defn select [context {table :table where :where match :match order-by :order-by limit :limit}]
+(defn resource-expression [table-def]
+  (let [cols (:columns table-def)
+        obj (->> (dissoc cols :resource)
+                 (reduce (fn [acc [k v]]
+                           (assoc acc k k))
+                         {:ql/type :jsonb/obj}))]
+    (if (:resource cols)
+      [:|| :resource obj]
+      obj)))
+
+(defn select [context {table :table  where :where match :match order-by :order-by limit :limit}]
   (let [where (or where (match-to-where match))]
     (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where :order-by order-by :limit limit}})
          (mapv process-resource))))
+
+;;TODO: reduce
+(defn fetch [context {table :table where :where match :match order-by :order-by limit :limit fetch-size :fetch-size} f]
+  (let [table-def (get-table-definition context table)
+        dsql {:select {:resource (resource-expression table-def)}
+              :from (keyword table)
+              :where where :order-by order-by :limit limit}]
+    (pg/fetch context (pg/format-dsql dsql) (or fetch-size 1000) :resource
+              (fn [r i] (f (pg/json-parse r))))))
 
 (defn read [context {table :table match :match :as opts}]
   (-> (select context opts)
@@ -193,7 +212,10 @@
                                   (when (seq cs) (wt))
                                   (recur cs))
                               (wnl))))]
-                 (f wr))))))
+                 (f wr))))
+    {}))
+
+
 
 
 

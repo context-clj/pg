@@ -74,10 +74,25 @@
 (defn drop-repo [context {table :table}]
   (pg/execute! context {:dsql {:ql/type :pg/drop-table :table-name table :if-exists true}}))
 
+
+
+(defn create-indexes [context table-def]
+  (let [tbl (keyword (:table table-def))]
+    (doseq [[col-name col] (:columns table-def)]
+      (when (:index col)
+        (let [dql {:ql/type :pg/index
+                   :index (keyword (str (name tbl) "_" (name col-name) "_idx"))
+                   :if-not-exists true
+                   :concurrently true
+                   :on tbl
+                   :expr [col-name]}]
+          (pg/execute! context {:dsql dql}))))))
+
 ;;TODO: check that it already exists
 (defn register-repo [context table-def]
   (pg.repo.table/assert table-def)
-  (pg/execute! context {:dsql (table-dsql table-def)}))
+  (pg/execute! context {:dsql (table-dsql table-def)})
+  (create-indexes context table-def))
 
 (defn process-resource [resource]
   (when resource

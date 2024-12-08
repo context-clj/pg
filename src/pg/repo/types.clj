@@ -2,3 +2,5 @@
 
 (def jsonb "jsonb")
 (def text "text")
+
+(def timestamptz "timestamptz")

@@ -59,10 +59,13 @@
 (defn execute! [ctx {sql :sql dql :dsql}]
   (let [sql (cond (vector? sql) sql
                   (string? sql) [sql]
-                  dql (format-dsql dql))]
-    (system/info ctx ::execute sql)
-    (->> (jdbc/execute! (datasource ctx) sql)
-         (mapv coerce))))
+                  dql (format-dsql dql))
+        start (System/nanoTime)]
+    (system/info ctx ::executing sql)
+    (let [res (->> (jdbc/execute! (datasource ctx) sql)
+                   (mapv coerce))]
+      (system/info ctx ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
+      res)))
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))

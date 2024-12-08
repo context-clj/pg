@@ -69,17 +69,22 @@
 
   (t/testing "repo"
 
+    (pg.repo/drop-repo context {:table "patient"})
+
+
     (pg.repo/table-dsql
      {:table "patient"
       :primary-key [:id]
       :columns {:id       {:type tps/text}
+                :ts       {:type tps/timestamptz :default "current_timestamp" :index true}               
                 :resource {:type tps/jsonb}}})
 
     (pg.repo/register-repo
      context {:table "patient"
               :primary-key [:id]
               :defaults true
-              :columns {:id {:type tps/text}
+              :columns {:id       {:type tps/text}
+                        :ts       {:type tps/timestamptz :default "current_timestamp" :index true}
                         :resource {:type tps/jsonb}}})
 
     (matcho/match
@@ -103,6 +108,10 @@
     (matcho/match
      (pg.repo/select context {:table "patient" :match {:id "pt-1"}})
      [{:id "pt-1", :name "changed" :extra 1}])
+
+    (pg.repo/select context {:table "patient"})
+
+    (pg/execute! context {:sql "select * from patient"})
 
     (pg.repo/truncate context {:table "patient"})
 

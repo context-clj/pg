@@ -160,14 +160,16 @@
       [:|| :resource obj]
       obj)))
 
-(defn select [context {table :table  where :where match :match order-by :order-by limit :limit}]
+(defn select [context {table :table sel :select  where :where match :match order-by :order-by limit :limit}]
   (let [where (or where (match-to-where match))]
-    (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where :order-by order-by :limit limit}})
-         (mapv process-resource))))
+    (-> (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where :order-by order-by :limit limit}})
+             (mapv process-resource))
+        (cond->> sel (mapv (fn [x] (select-keys x sel)))))))
 
 ;;TODO: reduce
 (defn fetch [context {table :table where :where match :match order-by :order-by limit :limit fetch-size :fetch-size} f]
   (let [table-def (get-table-definition context table)
+        where (or where (match-to-where match))
         dsql {:select {:resource (resource-expression table-def)}
               :from (keyword table)
               :where where :order-by order-by :limit limit}]

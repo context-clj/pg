@@ -18,7 +18,7 @@ inspired by ruby on rails - i.e. take metadata from database
 * create repo
 * insert / update / upsert / delete
 * select
-* describe
+- baseDefinition
 * indexes managment
 * views management
 * migrations

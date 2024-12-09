@@ -76,11 +76,13 @@
      {:table "patient"
       :primary-key [:id]
       :columns {:id       {:type tps/text}
-                :ts       {:type tps/timestamptz :default "current_timestamp" :index true}               
+                :ts       {:type tps/timestamptz :default "current_timestamp" :index true}
                 :resource {:type tps/jsonb}}})
 
+
     (pg.repo/register-repo
-     context {:table "patient"
+     context
+     {:table "patient"
               :primary-key [:id]
               :defaults true
               :columns {:id       {:type tps/text}

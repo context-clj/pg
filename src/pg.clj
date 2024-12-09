@@ -42,7 +42,8 @@
        (mapv coerce)))
 
 (defn datasource [ctx]
-  (system/get-system-state ctx [:datasource]))
+  (or (system/get-system-state ctx [:datasource])
+      (throw (Exception. "No datasource in pg module. pg module probably not initialized"))))
 
 (defn connection [ctx]
   (let [^HikariDataSource datasource (datasource ctx)]
@@ -57,6 +58,7 @@
 
 ;; TODO: hooks before sql and after to instrument - use open telemetry
 (defn execute! [ctx {sql :sql dql :dsql}]
+  (assert (or sql dql) ":sql or :dsql should be provided")
   (let [sql (cond (vector? sql) sql
                   (string? sql) [sql]
                   dql (format-dsql dql))

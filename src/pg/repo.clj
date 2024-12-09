@@ -75,7 +75,6 @@
   (pg/execute! context {:dsql {:ql/type :pg/drop-table :table-name table :if-exists true}}))
 
 
-
 (defn create-indexes [context table-def]
   (let [tbl (keyword (:table table-def))]
     (doseq [[col-name col] (:columns table-def)]

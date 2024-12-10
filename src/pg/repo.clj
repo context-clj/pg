@@ -161,7 +161,9 @@
 (defn match-to-where [match]
   (->> match
        (reduce (fn [acc [k v]]
-                 (assoc acc k [:= k [:pg/param v]]))
+                 (if (vector? v)
+                   (assoc acc k [:in k [:pg/params-list v]])
+                   (assoc acc k [:= k [:pg/param v]])))
                {})))
 
 (defn resource-expression [table-def]

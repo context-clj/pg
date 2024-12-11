@@ -25,8 +25,8 @@
 
 ;; Complete table schema specification
 (s/def ::table-schema
-  (s/keys :req-un [::table ::columns ::primary-key]
-          :opt-un []))
+  (s/keys :req-un [::table ::columns]
+          :opt-un [::primary-key]))
 
 (defn valid? [table-def]
   (s/valid? ::table-schema table-def))

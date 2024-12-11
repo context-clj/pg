@@ -64,7 +64,6 @@
       {:ql/type :pg/create-table
        :table-name (:table table-def)
        :if-not-exists true
-       :constraint    {:primary-key [:id :partition]}
        :columns (->> (:columns table-def)
                      (reduce (fn [cols [col-name col-def]]
                                (assoc cols col-name (column-definition col-def))) {}))}

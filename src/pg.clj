@@ -63,7 +63,7 @@
                   (string? sql) [sql]
                   dql (format-dsql dql))
         start (System/nanoTime)]
-    (system/info ctx ::executing sql)
+    #_(system/info ctx ::executing sql)
     (let [res (->> (jdbc/execute! (datasource ctx) sql)
                    (mapv coerce))]
       (system/info ctx ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})

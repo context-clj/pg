@@ -31,20 +31,25 @@
    :from :information_schema.columns
    :where [:= :table_name [:pg/param table-name]]})
 
-(defn get-table-definition [context table-name]
-  {:table table-name
-   :primary-key (->>
-                 (pg/execute! context {:dsql (primary-key-dsql table-name)})
-                 (mapv (fn [x] (keyword (:column x))))
-                 (into []))
-   :columns (->> (pg/execute! context {:dsql (columns-dsql table-name)})
-                 (reduce (fn [acc col]
-                           (assoc acc (keyword (:name col))
-                                  (cond-> {:position (:position col) :type (:type col)}
-                                    (= "NO" (:is_nullable col)) (assoc :required true)
-                                    (:default col) (assoc :default (:default col)))))
-                         {}))})
+(defn clear-table-definitions-cache [context]
+  (system/clear-context-cache context [:tables]))
 
+(defn get-table-definition [context table-name]
+  (system/get-context-cache
+   context [:tables table-name]
+   (fn []
+     {:table table-name
+      :primary-key (->>
+                    (pg/execute! context {:dsql (primary-key-dsql table-name)})
+                    (mapv (fn [x] (keyword (:column x))))
+                    (into []))
+      :columns (->> (pg/execute! context {:dsql (columns-dsql table-name)})
+                    (reduce (fn [acc col]
+                              (assoc acc (keyword (:name col))
+                                     (cond-> {:position (:position col) :type (:type col)}
+                                       (= "NO" (:is_nullable col)) (assoc :required true)
+                                       (:default col) (assoc :default (:default col)))))
+                            {}))})))
 
 (defn valid-table-defintion? [table-def]
   (pg.repo.table/assert table-def))

@@ -7,6 +7,7 @@
    [next.jdbc.result-set :as rs]
    [dsql.pg]
    [cheshire.core])
+  (:refer-clojure :exclude [load])
   (:import (java.sql Connection DriverManager)
            (java.io BufferedInputStream BufferedReader FileInputStream FileNotFoundException InputStream InputStreamReader)
            (java.util.zip GZIPInputStream)

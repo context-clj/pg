@@ -3,7 +3,8 @@
             [cheshire.core]
             [pg]
             [pg.repo.table]
-            [clojure.string :as str]))
+            [clojure.string :as str])
+  (:refer-clojure :exclude [read load]))
 
 
 (system/defmanifest

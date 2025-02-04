@@ -1,5 +1,6 @@
 (ns pg.repo.table
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s])
+  (:refer-clojure :exclude [assert]))
 
 (def datatypes #{"text" "timestamptz" "jsonb" "uuid" "boolean"})
 (s/def ::type (s/and string? #(contains? datatypes %)))

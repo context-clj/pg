@@ -181,6 +181,7 @@
       obj)))
 
 (defn select [context {table :table sel :select  where :where match :match order-by :order-by limit :limit}]
+  (assert table "table is required")
   (let [where (or where (match-to-where match))]
     (-> (->> (pg/execute! context {:dsql {:select :* :from (keyword table) :where where :order-by order-by :limit limit}})
              (mapv process-resource))

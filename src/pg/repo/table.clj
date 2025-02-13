@@ -2,7 +2,7 @@
   (:require [clojure.spec.alpha :as s])
   (:refer-clojure :exclude [assert]))
 
-(def datatypes #{"text" "timestamptz" "jsonb" "uuid" "boolean"})
+(def datatypes #{"text" "timestamptz" "jsonb" "uuid" "boolean" "text[]" "uuid[]"})
 (s/def ::type (s/and string? #(contains? datatypes %)))
 (s/def ::default string?)
 (s/def ::required boolean?)

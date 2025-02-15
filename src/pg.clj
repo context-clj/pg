@@ -65,10 +65,14 @@
                   dql (format-dsql dql))
         start (System/nanoTime)]
     #_(system/info ctx ::executing sql)
-    (let [res (->> (jdbc/execute! (datasource ctx) sql)
-                   (mapv coerce))]
-      (system/info ctx ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
-      res)))
+    (try
+      (let [res (->> (jdbc/execute! (datasource ctx) sql)
+                     (mapv coerce))]
+        (system/info ctx ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
+        res)
+      (catch Exception e
+        (system/info ctx ::error sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
+        (throw e)))))
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))

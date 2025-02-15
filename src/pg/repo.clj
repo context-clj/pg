@@ -112,8 +112,9 @@
              (sort-by :position)
              (reduce (fn [acc [col-name _col-def]]
                        (if-let [v (get resource col-name)]
-                         (assoc acc col-name [:pg/param v])
-                         acc))
+                         (if (vector? v)
+                           (assoc acc col-name [:pg/array-param :text v])
+                           (assoc acc col-name [:pg/param v])) acc))
                      {}))
         (cond->
             (and resource? (= (:type resource?) "jsonb"))

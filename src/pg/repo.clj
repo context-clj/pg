@@ -182,6 +182,7 @@
       [:|| :resource obj]
       obj)))
 
+;;TODO merge where and match
 (defn select [context {table :table sel :select  where :where match :match order-by :order-by limit :limit}]
   (assert table "table is required")
   (let [where (or where (match-to-where match))]

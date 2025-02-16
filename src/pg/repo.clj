@@ -35,6 +35,7 @@
 (defn clear-table-definitions-cache [context]
   (system/clear-context-cache context [:tables]))
 
+;;TODO: check that table exists
 (defn get-table-definition [context table-name]
   (system/get-context-cache
    context [:tables table-name]
@@ -54,7 +55,6 @@
 
 (defn valid-table-defintion? [table-def]
   (pg.repo.table/assert table-def))
-
 
 (defn column-definition [col-def]
   (into []
@@ -78,7 +78,6 @@
 
 (defn drop-repo [context {table :table}]
   (pg/execute! context {:dsql {:ql/type :pg/drop-table :table-name table :if-exists true}}))
-
 
 (defn create-indexes [context table-def]
   (let [tbl (keyword (:table table-def))]
@@ -160,6 +159,7 @@
 ;;TODO: add events
 (defn upsert [context {table :table resource :resource}]
   (let [table-def (get-table-definition context table)]
+    (println :?? (build-upsert table-def resource))
     (->> (pg/execute! context {:dsql (build-upsert table-def resource)})
          (mapv process-resource)
          first)))

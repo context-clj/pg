@@ -6,7 +6,8 @@
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as rs]
    [dsql.pg]
-   [cheshire.core])
+   [cheshire.core]
+   [pg.migrations])
   (:refer-clojure :exclude [load])
   (:import (java.sql Connection DriverManager)
            (java.io BufferedInputStream BufferedReader FileInputStream FileNotFoundException InputStream InputStreamReader)
@@ -180,6 +181,41 @@
       (try (cb write)
            (finally (.endCopy  ci))))))
 
+
+(defn migrate-prepare [context]
+  (execute! context {:sql "create table if not exists _migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
+
+(defn migrate-up [context & [id]]
+  (let [migrations (cond->> (pg.migrations/read-migrations)
+                     id (filterv (fn [x] (= id (:id x)))))
+        migrations-done (->> (execute! context {:sql "select * from _migrations"})
+                             (reduce (fn [acc {id :id :as m}]
+                                       (assoc acc id m)) {}))]
+    (doseq [m migrations]
+      (when-not (get migrations-done (:id m))
+        (system/info context ::migration-up (:id m))
+        (try
+          (doseq [sql (:up m)]
+            (pg/execute! context {:sql sql}))
+          (pg/execute! context {:sql ["insert into _migrations (id, file) values (?, ?)" (:id m) (:file m)]})
+          (catch Exception e
+            (doseq [sql (:down m)]
+              (try (pg/execute! context {:sql sql}) (catch Exception _e)))
+            (throw e)))))))
+
+(defn migrate-down [context & [id]]
+  (let [migrations (->> (pg.migrations/read-migrations)
+                        (reduce (fn [acc {id :id :as m}]
+                                  (assoc acc id m)) {}))
+        rollback-migrations (execute! context {:dsql {:select :* :from :_migrations :where (when id [:= :id id])
+                                                      :order-by [:pg/desc :ts]
+                                                      :limit 1}})]
+    (doseq [m rollback-migrations]
+      (when-let [md (get migrations (:id m))]
+        (system/info context ::migration-down (:id m))
+        (doseq [sql (:down md)]
+          (try (pg/execute! context {:sql sql}) (catch Exception _e)))
+        (pg/execute! context {:sql ["delete from _migrations where id = ?" (:id m)]})))))
 
 
 #_(defmacro load-data [ctx writers & rest]

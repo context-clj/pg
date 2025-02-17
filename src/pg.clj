@@ -182,6 +182,9 @@
            (finally (.endCopy  ci))))))
 
 
+(defn generate-migration [id]
+  (pg.migrations/generate-migration id))
+
 (defn migrate-prepare [context]
   (execute! context {:sql "create table if not exists _migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
 
@@ -216,7 +219,6 @@
         (doseq [sql (:down md)]
           (try (pg/execute! context {:sql sql}) (catch Exception _e)))
         (pg/execute! context {:sql ["delete from _migrations where id = ?" (:id m)]})))))
-
 
 #_(defmacro load-data [ctx writers & rest]
     (println :? writers)

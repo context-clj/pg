@@ -18,26 +18,15 @@
 
  :aliases
  {:dev
-  {:extra-paths ["dev" "test" "resources"]
+  {:extra-paths ["dev" "test" "test-resources" "test-resources-extra"]
    :jvm-opts ["-Dclojure.compiler.direct-linking=true"
               "-XX:MaxDirectMemorySize=16g" "-XX:+UseLargePages"
               "--add-opens=java.base/java.nio=ALL-UNNAMED"
               "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
               "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"]}
-  :nrepl
-  {:extra-paths ["test"]
-   :extra-deps  {cider/cider-nrepl {:mvn/version "LATEST"}}
-   ;; :jvm-opts ^:replace ["-XX:-OmitStackTraceInFastThrow" "-Djdk.attach.allowAttachSelf"]
-   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
-
-   :main-opts   ["-m" "nrepl.cmdline"
-                 "-b" "0.0.0.0"
-                 "--middleware"
-                 "[cider.nrepl/cider-middleware]"]}
-
-  :kaocha
+  :test
   {:extra-deps {lambdaisland/kaocha {:mvn/version "1.77.1236"}}
-   :extra-paths ["test"]
+   :extra-paths ["test"  "test-resources" "test-resources-extra"]
    :jvm-opts   ^:replace ["-XX:-OmitStackTraceInFastThrow"]
    :main-opts  ["-m" "kaocha.runner"]}
 

@@ -38,9 +38,13 @@
       (recur mode (conj cur l) acc ls)
       )))
 
+
 (defn read-migrations []
-  (->> (file-seq (io/file (str (System/getProperty "user.dir") "/resources/migrations")))
-       (filter #(str/ends-with? (.getName %) ".sql"))
+  (->> (ClassLoader/getSystemResources "migrations")
+       enumeration-seq
+       (map io/file)
+       (mapcat file-seq)
+       (filter #(and (.isFile %) (str/ends-with? (.getName %) ".sql")))
        (sort-by #(.getName %))
        (mapv (fn [x]
                (merge (parse-migration (slurp x))

@@ -109,11 +109,16 @@
         cols (keys (dissoc columns :resource))]
     (-> (->> (dissoc columns :resource)
              (sort-by :position)
-             (reduce (fn [acc [col-name _col-def]]
+             (reduce (fn [acc [col-name col-def]]
                        (if-let [v (get resource col-name)]
-                         (if (vector? v)
-                           (assoc acc col-name [:pg/array-param :text v])
-                           (assoc acc col-name [:pg/param v])) acc))
+                         (cond
+                           (= "jsonb" (:type col-def))
+                           (assoc acc col-name [:pg/param (cheshire.core/generate-string v)])
+                           :else
+                           (if (vector? v)
+                             (assoc acc col-name [:pg/array-param :text v])
+                             (assoc acc col-name [:pg/param v])))
+                         acc))
                      {}))
         (cond->
             (and resource? (= (:type resource?) "jsonb"))
@@ -157,9 +162,9 @@
    :returning :*})
 
 ;;TODO: add events
+;;TODO: test for rextra columns
 (defn upsert [context {table :table resource :resource}]
   (let [table-def (get-table-definition context table)]
-    (println :?? (build-upsert table-def resource))
     (->> (pg/execute! context {:dsql (build-upsert table-def resource)})
          (mapv process-resource)
          first)))

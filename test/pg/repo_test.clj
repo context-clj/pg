@@ -28,24 +28,25 @@
 
   (t/testing "test work with existing table"
     (pg/execute! context {:sql "drop table if exists repo_test"})
+    (pg.repo/clear-table-definitions-cache context)
 
-    (pg/execute! context {:sql "create table if not exists repo_test (id text primary key, ts timestamptz default current_timestamp, name text)"})
+    (pg/execute! context {:sql "create table if not exists repo_test (id text primary key, ts timestamptz default current_timestamp, name text, obj jsonb)"})
 
     (pg.repo/get-table-definition context "repo_test")
 
     (pg.repo/valid-table-defintion? (pg.repo/get-table-definition context "repo_test"))
 
-    (pg.repo/build-insert (pg.repo/get-table-definition context "repo_test") {:id "id" :name "name"})
+    (pg.repo/build-insert (pg.repo/get-table-definition context "repo_test") {:id "id" :name "name" :obj {:a 1 :b {:c 1}}})
 
     (matcho/match
-     (pg.repo/insert context {:table "repo_test" :resource {:id "r1" :name "name"}})
-     {:id "r1", :ts #(not (nil? %)) :name "name"})
+        (pg.repo/insert context {:table "repo_test" :resource {:id "r1" :name "name" :obj {:a 1 :b {:c 1}}}})
+      {:id "r1", :ts #(not (nil? %)) :name "name" :obj {:a 1 :b {:c 1}}})
 
     (pg.repo/insert context {:table "repo_test" :resource {:id "r2" :name "name" :something "else"}})
 
     (matcho/match
-     (pg.repo/upsert context {:table "repo_test" :resource {:id "r2" :name "updated"}})
-     {:id "r2", :ts #(not (nil? %)) :name "updated"})
+     (pg.repo/upsert context {:table "repo_test" :resource {:id "r2" :name "updated" :obj {:a 2}}})
+     {:id "r2", :ts #(not (nil? %)) :name "updated" :obj {:a 2 :b nil?}})
 
     (pg.repo/select context {:table "repo_test" :match {:id "r1"}})
 

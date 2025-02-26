@@ -73,7 +73,16 @@
         res)
       (catch Exception e
         (system/info ctx ::error sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
-        (throw e)))))
+        (let [msg (.getMessage e) ]
+          (if-let [[_ pos] (and (str/includes? msg "Position:") (re-find #"Position: (\d+)" msg))]
+            (let [sql (first sql)
+                  pos (Integer/parseInt pos)]
+              (throw (Exception. (str (.getMessage e)
+                                      "\n"
+                                      (subs sql (min (abs (- pos 10)) 0) pos)
+                                      "<*>"
+                                      (subs sql pos (min (+ pos 10) (count sql)))))))
+            (throw e)))))))
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))

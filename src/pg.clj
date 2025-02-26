@@ -29,7 +29,11 @@
   (->> r
        (reduce (fn [acc [k v]]
                  (assoc acc (keyword (name k))
-                        (cond (instance? PGobject v) (cheshire.core/parse-string (.getValue ^PGobject v) keyword)
+                        (cond (instance? PGobject v)
+                              (case (.getType ^PGobject v)
+                                "json" (cheshire.core/parse-string (.getValue ^PGobject v) keyword)
+                                "jsonb" (cheshire.core/parse-string (.getValue ^PGobject v) keyword)
+                                (.getValue ^PGobject v))
                               (instance? java.math.BigDecimal v) (double v)
                               (instance? PgArray v) (vec (.getArray ^PgArray v))
                               :else v))

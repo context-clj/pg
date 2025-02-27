@@ -39,7 +39,7 @@
       )))
 
 (defn read-migrations []
-  (->> (file-seq (io/file (str (System/getProperty "user.dir") "/resources/migrations")))
+  (->> (file-seq (io/file (io/resource "migrations")))
        (filter #(str/ends-with? (.getName %) ".sql"))
        (sort-by #(.getName %))
        (mapv (fn [x]

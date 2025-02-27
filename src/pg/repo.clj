@@ -40,6 +40,8 @@
   (system/get-context-cache
    context [:tables table-name]
    (fn []
+     (when-not (first (pg/execute! context {:sql ["SELECT FROM information_schema.tables WHERE table_name = ?" (name table-name)]}))
+       (throw (Exception. (str "Table " (pr-str table-name) " does not exists"))))
      {:table table-name
       :primary-key (->>
                     (pg/execute! context {:dsql (primary-key-dsql table-name)})

@@ -149,7 +149,9 @@
          (sort-by :position)
          (reduce (fn [acc [col-name _col-def]]
                    (if-not (nil? (get resource col-name))
-                     (assoc acc col-name (keyword (str "EXCLUDED." (name col-name))))
+                     (assoc acc
+                            (keyword (format "\"%s\"" (name col-name)))
+                            (keyword (str "EXCLUDED." (format "\"%s\"" (name col-name)))))
                      acc)
                    ) update-map))))
 

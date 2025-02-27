@@ -38,15 +38,43 @@
       (recur mode (conj cur l) acc ls)
       )))
 
-(defn read-migrations []
-  (->> (file-seq (io/file (io/resource "migrations")))
-       (filter #(str/ends-with? (.getName %) ".sql"))
+(defn process-migration-entry [entry entry-name]
+  (merge
+   (parse-migration (slurp entry))
+   {:id (second (str/split (str/replace entry-name #"\.sql$" "") #"_" 2))
+    :file (str/replace entry-name #"\.sql$" "")}))
+
+(defn is-sql-migration? [entry]
+  (and (not (.isDirectory entry))
+       (str/ends-with? (.getName entry) ".sql")))
+
+(defn process-jar-entries [conn loader]
+  (let [jar-entries (enumeration-seq (.entries (.getJarFile conn)))]
+    (->> jar-entries
+         (filter is-sql-migration?)
+         (sort-by #(.getName %))
+         (map #(process-migration-entry
+                (.getResourceAsStream loader (.getName %))
+                (.getName %))))))
+
+(defn process-filesystem-entries [file]
+  (->> (file-seq file)
+       (filter is-sql-migration?)
        (sort-by #(.getName %))
-       (mapv (fn [x]
-               (merge (parse-migration (slurp x))
-                      {:path (.getPath x)
-                       :id (second (str/split (str/replace (.getName x) #"\.sql$" "") #"_" 2))
-                       :file (str/replace (.getName x) #"\.sql$" "")})))))
+       (map #(process-migration-entry % (.getName %)))))
+
+(defn read-migrations []
+  (let [path "migrations/"
+        loader (.getContextClassLoader (Thread/currentThread))
+        resources (enumeration-seq (.getResources loader path))]
+    (->> resources
+         (mapcat
+          (fn [^java.net.URL url]
+            (let [conn (.openConnection url)]
+              (if (instance? java.net.JarURLConnection conn)
+                (process-jar-entries conn loader)
+                (process-filesystem-entries (io/file (.getPath url)))))))
+         (into []))))
 
 (comment
   (generate-migration "init")

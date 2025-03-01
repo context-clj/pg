@@ -58,8 +58,24 @@
 (defn format-dsql [dql]
   (dsql.pg/format dql))
 
+
+(defn jdbc-execute! [conn {sql :sql dql :dsql :as opts}]
+  (assert (or sql dql) ":sql or :dsql should be provided")
+  (let [sql (cond (vector? sql) sql
+                  (string? sql) [sql]
+                  dql (format-dsql dql))
+        start (System/nanoTime)]
+    (try
+      (let [res (->> (jdbc/execute! conn sql)
+                     (mapv coerce))]
+        (println ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
+        res)
+      (catch Exception e
+        (println ::error sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
+        (throw e)))))
+
 ;; TODO: hooks before sql and after to instrument - use open telemetry
-(defn execute! [ctx {sql :sql dql :dsql}]
+(defn execute! [ctx {sql :sql dql :dsql :as opts}]
   (assert (or sql dql) ":sql or :dsql should be provided")
   (let [sql (cond (vector? sql) sql
                   (string? sql) [sql]
@@ -73,7 +89,8 @@
         res)
       (catch Exception e
         (system/info ctx ::error sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
-        (throw e)))))
+        (throw e))))
+  )
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))
@@ -86,6 +103,14 @@
 (defn safe-execute! [ctx q]
   (->> (jdbc/execute! (datasource ctx) q)
        (mapv coerce)))
+
+
+;; Make sure the driver is loaded
+(Class/forName "org.postgresql.Driver")
+
+(defn get-connection [config]
+  (let [jdbc-url (str "jdbc:postgresql://"(:host config) ":"(:port config) "/" (:database config))]
+    (DriverManager/getConnection jdbc-url (:user config) (:password config))))
 
 ;; TODO: add params
 ;; (def defaults
@@ -290,6 +315,21 @@
 
 
 (comment
+
+  (require '[pg.docker :as pgd])
+
+  (pgd/delete-pg "test-pg")
+
+  (def pg-config (pgd/ensure-pg "test-pg"))
+
+  (def conn (pg/get-connection pg-config))
+  (jdbc-execute! conn {:sql "select 1"})
+  (.close conn)
+
+  (def sys (system/start-system {:services ["pg"] :pg pg-config}))
+  (execute! sys {:sql ["select 1"]})
+  (system/stop-system sys)
+
 
 
   )

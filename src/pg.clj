@@ -29,7 +29,11 @@
   (->> r
        (reduce (fn [acc [k v]]
                  (assoc acc (keyword (name k))
-                        (cond (instance? PGobject v) (cheshire.core/parse-string (.getValue ^PGobject v) keyword)
+                        (cond (instance? PGobject v)
+                              (case (.getType ^PGobject v)
+                                "json" (cheshire.core/parse-string (.getValue ^PGobject v) keyword)
+                                "jsonb" (cheshire.core/parse-string (.getValue ^PGobject v) keyword)
+                                (.getValue ^PGobject v))
                               (instance? java.math.BigDecimal v) (double v)
                               (instance? PgArray v) (vec (.getArray ^PgArray v))
                               :else v))
@@ -57,7 +61,6 @@
 
 (defn format-dsql [dql]
   (dsql.pg/format dql))
-
 
 (defn jdbc-execute! [conn {sql :sql dql :dsql :as opts}]
   (assert (or sql dql) ":sql or :dsql should be provided")
@@ -89,8 +92,16 @@
         res)
       (catch Exception e
         (system/info ctx ::error sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
-        (throw e))))
-  )
+        (let [msg (.getMessage e) ]
+          (if-let [[_ pos] (and (str/includes? msg "Position:") (re-find #"Position: (\d+)" msg))]
+            (let [sql (first sql)
+                  pos (Integer/parseInt pos)]
+              (throw (Exception. (str (.getMessage e)
+                                      "\n"
+                                      (subs sql (min (abs (- pos 10)) 0) pos)
+                                      "<*>"
+                                      (subs sql pos (min (+ pos 10) (count sql)))))))
+            (throw e)))))))
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))
@@ -207,6 +218,9 @@
            (finally (.endCopy  ci))))))
 
 
+(defn generate-migration [id]
+  (pg.migrations/generate-migration id))
+
 (defn migrate-prepare [context]
   (execute! context {:sql "create table if not exists _migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
 
@@ -241,7 +255,6 @@
         (doseq [sql (:down md)]
           (try (pg/execute! context {:sql sql}) (catch Exception _e)))
         (pg/execute! context {:sql ["delete from _migrations where id = ?" (:id m)]})))))
-
 
 #_(defmacro load-data [ctx writers & rest]
     (println :? writers)

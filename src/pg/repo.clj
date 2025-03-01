@@ -40,6 +40,8 @@
   (system/get-context-cache
    context [:tables table-name]
    (fn []
+     (when-not (first (pg/execute! context {:sql ["SELECT FROM information_schema.tables WHERE table_name = ?" (name table-name)]}))
+       (throw (Exception. (str "Table " (pr-str table-name) " does not exists"))))
      {:table table-name
       :primary-key (->>
                     (pg/execute! context {:dsql (primary-key-dsql table-name)})
@@ -109,11 +111,16 @@
         cols (keys (dissoc columns :resource))]
     (-> (->> (dissoc columns :resource)
              (sort-by :position)
-             (reduce (fn [acc [col-name _col-def]]
+             (reduce (fn [acc [col-name col-def]]
                        (if-let [v (get resource col-name)]
-                         (if (vector? v)
-                           (assoc acc col-name [:pg/array-param :text v])
-                           (assoc acc col-name [:pg/param v])) acc))
+                         (cond
+                           (= "jsonb" (:type col-def))
+                           (assoc acc col-name [:pg/param (cheshire.core/generate-string v)])
+                           :else
+                           (if (vector? v)
+                             (assoc acc col-name [:pg/array-param :text v])
+                             (assoc acc col-name [:pg/param v])))
+                         acc))
                      {}))
         (cond->
             (and resource? (= (:type resource?) "jsonb"))
@@ -142,7 +149,9 @@
          (sort-by :position)
          (reduce (fn [acc [col-name _col-def]]
                    (if-not (nil? (get resource col-name))
-                     (assoc acc col-name (keyword (str "EXCLUDED." (name col-name))))
+                     (assoc acc
+                            (keyword (format "\"%s\"" (name col-name)))
+                            (keyword (str "EXCLUDED." (format "\"%s\"" (name col-name)))))
                      acc)
                    ) update-map))))
 
@@ -157,9 +166,9 @@
    :returning :*})
 
 ;;TODO: add events
+;;TODO: test for rextra columns
 (defn upsert [context {table :table resource :resource}]
   (let [table-def (get-table-definition context table)]
-    (println :?? (build-upsert table-def resource))
     (->> (pg/execute! context {:dsql (build-upsert table-def resource)})
          (mapv process-resource)
          first)))

@@ -16,44 +16,52 @@
                   ::on-new-repo {}
                   }})
 
-(defn primary-key-dsql [table-name]
+(defn primary-key-dsql [table-name table-schema]
   {:select {:column :kcu.column_name}
    :from {:tc :information_schema.table_constraints
           :kcu :information_schema.key_column_usage}
    :where {:join [:= :tc.constraint_name :kcu.constraint_name]
-           :tbl  [:= :tc.table_name [:pg/param table-name]]}})
+           :tbl  [:= :tc.table_name [:pg/param table-name]]
+           :sch  [:= :tc.table_schema [:pg/param table-schema]]}})
 
-(defn- columns-dsql [table-name]
+(defn- columns-dsql [table-name table-schema]
   {:select {:name :column_name
             :default :column_default
             :is_nullable :is_nullable
             :type :udt_name
             :position :ordinal_position}
    :from :information_schema.columns
-   :where [:= :table_name [:pg/param table-name]]})
+   :where [:and
+           [:= :table_name [:pg/param table-name]]
+           [:= :table_schema [:pg/param table-schema]]]})
 
 (defn clear-table-definitions-cache [context]
   (system/clear-context-cache context [:tables]))
 
 ;;TODO: check that table exists
+;;TODO: add schemas suport
 (defn get-table-definition [context table-name]
   (system/get-context-cache
    context [:tables table-name]
    (fn []
-     (when-not (first (pg/execute! context {:sql ["SELECT FROM information_schema.tables WHERE table_name = ?" (name table-name)]}))
-       (throw (Exception. (str "Table " (pr-str table-name) " does not exists"))))
-     {:table table-name
-      :primary-key (->>
-                    (pg/execute! context {:dsql (primary-key-dsql table-name)})
-                    (mapv (fn [x] (keyword (:column x))))
-                    (into []))
-      :columns (->> (pg/execute! context {:dsql (columns-dsql table-name)})
-                    (reduce (fn [acc col]
-                              (assoc acc (keyword (:name col))
-                                     (cond-> {:position (:position col) :type (:type col)}
-                                       (= "NO" (:is_nullable col)) (assoc :required true)
-                                       (:default col) (assoc :default (:default col)))))
-                            {}))})))
+     (let [[table-schema table-name*] (if (str/includes? (name table-name) ".")
+                                       (str/split (name table-name) #"\." 2)
+                                       ["public" table-name])]
+       (when-not (first (pg/execute! context {:sql ["SELECT FROM information_schema.tables WHERE table_name = ? and table_schema = ?"
+                                                    table-name* table-schema]}))
+         (throw (Exception. (str "Table " (pr-str table-name) " does not exists"))))
+       {:table table-name
+        :primary-key (->>
+                      (pg/execute! context {:dsql (primary-key-dsql table-name* table-schema)})
+                      (mapv (fn [x] (keyword (:column x))))
+                      (into []))
+        :columns (->> (pg/execute! context {:dsql (columns-dsql table-name* table-schema)})
+                      (reduce (fn [acc col]
+                                (assoc acc (keyword (:name col))
+                                       (cond-> {:position (:position col) :type (:type col)}
+                                         (= "NO" (:is_nullable col)) (assoc :required true)
+                                         (:default col) (assoc :default (:default col)))))
+                              {}))}))))
 
 (defn valid-table-defintion? [table-def]
   (pg.repo.table/assert table-def))

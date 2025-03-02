@@ -8,8 +8,6 @@
         com.github.seancorfield/next.jdbc           {:mvn/version "1.2.780"}
         com.fasterxml.jackson.core/jackson-core     {:mvn/version "2.13.5"}
         com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.5"}
-        healthsamurai/dsql                          {:git/url "https://github.com/HealthSamurai/dsql.git"
-                                                     :sha "7e1564ee0bc24ca3fd6a3ddd39b6ddb93becfcde"}
         healthsamurai/matcho                        {:mvn/version "0.3.8"}
 
         context/schema {:git/url "https://github.com/context-clj/system.git"

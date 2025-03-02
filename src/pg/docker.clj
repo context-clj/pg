@@ -45,7 +45,7 @@
 
 (defn wait-connection [pg-config & [i]]
   (let [i (or i 0)]
-    (if (> 1 10)
+    (if (> i 10)
       (throw (Exception. "could not connect"))
       (try
         (with-open [conn (pg/get-connection pg-config)]

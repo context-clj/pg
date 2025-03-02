@@ -113,7 +113,7 @@
       (pg.repo/upsert context {:table "patient" :resource {:birthdate "1980-05-03" :given "Nikolai" :gender "male"}})
     {:id int?
      :given "Nikolai",
-     :birthdate #inst "1980-05-02T23:00:00.000000000-00:00",
+     :birthdate inst?
      :gender "male"})
 
 

@@ -1,6 +1,6 @@
 (ns dsql.pg-test
   (:require [dsql.pg :as sut]
-            [jsonista.core :as json]
+            [cheshire.core]
             [clojure.test :refer [deftest is testing]])
   (:import  [com.fasterxml.jackson.databind   JsonNode ObjectMapper]))
 
@@ -12,7 +12,7 @@
 
 ;; Only for tests purproses
 (defonce ^ObjectMapper object-mapper (ObjectMapper.))
-(defn to-jackson [o] (.readTree object-mapper (json/write-value-as-string o)) )
+(defn to-jackson [o] (.readTree object-mapper (cheshire.core/generate-string o)) )
 
 (deftest test-dsql-pgi
 

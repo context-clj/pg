@@ -1,6 +1,6 @@
 (ns dsql.pg
   (:require [dsql.core :as ql]
-            [jsonista.core :as json]
+            [cheshire.core]
             [clojure.string :as str])
   (:import [com.fasterxml.jackson.databind.node  ObjectNode ArrayNode TextNode IntNode BooleanNode DoubleNode LongNode]
            [com.fasterxml.jackson.databind       JsonNode ObjectMapper]
@@ -410,8 +410,8 @@
   :pg/jsonb
   [acc opts v]
   (if (= :pg/jsonb (first v))
-    (conj acc (ql/string-litteral (json/write-value-as-string (second v))))
-    (conj acc (ql/string-litteral (json/write-value-as-string v)))))
+    (conj acc (ql/string-litteral (cheshire.core/generate-string (second v))))
+    (conj acc (ql/string-litteral (cheshire.core/generate-string v)))))
 
 (defn to-json-string [^JsonNode json]
   (.writeValueAsString object-mapper json))

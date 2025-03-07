@@ -192,6 +192,24 @@
         (finally
           (.endCopy  ci))))))
 
+(defn open-copy-manager  [ctx sql]
+  (let [^Connection c (connection ctx)
+        ^CopyManager cm (CopyManager. (.unwrap ^Connection c PGConnection))]
+    (.copyIn cm sql)))
+
+(defn close-copy-manger [^CopyIn ci]
+  (.endCopy ci))
+
+(defn copy-write-column [^CopyIn ci ^String s]
+  (let [^bytes bt (.getBytes s)]
+    (.writeToCopy ci bt 0 (count bt))))
+
+(defn copy-write-new-line [^CopyIn ci]
+  (.writeToCopy ci NEW_LINE 0 1))
+
+(defn copy-write-tab [^CopyIn ci]
+  (.writeToCopy ci TAB 0 1))
+
 (defn copy [ctx sql cb]
   (with-open [^Connection c (connection ctx)]
     (let [^CopyManager cm (CopyManager. (.unwrap ^Connection c PGConnection))

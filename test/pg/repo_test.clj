@@ -157,8 +157,24 @@
       {:id "r-8", :name "pt-8"}
       {:id "r-9", :name "pt-9"}])
 
+    (pg/execute! context {:sql "truncate patient"})
 
-    )
+    (def cm (pg.repo/open-loader context {:table "patient"}))
+
+    (doseq [i (range 5)]
+      (pg.repo/load-resource cm {:id (str "rc" i) :name (str "pt-" i)}))
+
+    (pg.repo/close-loader cm)
+
+
+    (matcho/match
+        (pg.repo/select context {:table "patient"})
+      [{:id "rc0" :name "pt-0"}
+       {:id "rc1" :name "pt-1"}
+       {:id "rc2" :name "pt-2"}
+       {:id "rc3" :name "pt-3"}
+       {:id "rc4" :name "pt-4"}
+       nil?]))
 
 
 

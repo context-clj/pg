@@ -127,3 +127,32 @@
   ;; (copy-ndjson context "test" (fn [w] (doseq [i (range 100)] (w {:i i}))))
 
   )
+
+(t/deftest test-copy-functions
+
+  (def cfg {:host "localhost" :port  5401 :database "context_pg" :user "admin" :password "admin"})
+
+  (def copy-context (system/start-system {:services ["pg"] :pg cfg}))
+
+  (pg/execute! copy-context {:sql "create table if not exists _copy_test (id int primary key, label text);"})
+
+  (pg/execute! copy-context {:sql "select * from _copy_test"})
+  (pg/execute! copy-context {:sql "truncate _copy_test"})
+
+  (def ci (pg/open-copy-manager copy-context "copy _copy_test (id,label) FROM STDIN csv delimiter e'\\t'"))
+
+  (pg/copy-write-column ci "1")
+  (pg/copy-write-tab ci)
+  (pg/copy-write-column ci "item-1")
+  (pg/copy-write-new-line ci)
+
+  (pg/close-copy-manger ci)
+
+  (matcho/match
+      (pg/execute! copy-context {:sql "select * from _copy_test"})
+      [{:id 1, :label "item-1"}])
+
+
+  (system/stop-system copy-context)
+
+  )

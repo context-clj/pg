@@ -258,9 +258,29 @@
                  (f wr))))
     {}))
 
+(defn open-loader [context {table :table}]
+ (let [table-def (get-table-definition context table)
+        columns (keys (:columns table-def))
+        columns-resource (keys (dissoc (:columns table-def) :resource))
+        sql (str "COPY " (:table table-def) "( " (->> columns (mapv name) (str/join ",")) " )  FROM STDIN csv quote e'\\x01' delimiter e'\\t'" )]
+    (system/info context ::open-copy-manager sql)
+    {:copy-manager (pg/open-copy-manager context sql)
+     :sql sql
+     :columns columns
+     :columns-resource columns-resource}))
 
+(defn close-loader [{cm :copy-manager}]
+  (pg/close-copy-manger cm))
 
+(defn load-resource [{columns :columns columns-resource :columns-resource cm :copy-manager} res]
+  (loop [[c & cs] columns]
+    (if c
+      (do
+        (if (= :resource c)
+          (pg/copy-write-column cm (cheshire.core/generate-string (apply dissoc res columns-resource)))
+          (when-let [v (get res c)]
+            (pg/copy-write-column cm (str v))))
+        (when (seq cs) (pg/copy-write-tab cm))
+        (recur cs))
+      (pg/copy-write-new-line cm))))
 
-
-
-;; TODO cache table defs

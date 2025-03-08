@@ -78,6 +78,8 @@
       :primary-key [:id]
       :columns {:id       {:type tps/text}
                 :ts       {:type tps/timestamptz :default "current_timestamp" :index true}
+                :tags     {:type "text[]"}
+                :jcol     {:type "jsonb"}
                 :resource {:type tps/jsonb}}})
 
 
@@ -88,6 +90,8 @@
               :defaults true
               :columns {:id       {:type tps/text}
                         :ts       {:type tps/timestamptz :default "current_timestamp" :index true}
+                        :tags     {:type "text[]"}
+                        :jcol     {:type "jsonb"}
                         :resource {:type tps/jsonb}}})
 
     (matcho/match
@@ -98,8 +102,8 @@
                 :resource {:type "jsonb"}}})
 
     (matcho/match
-     (pg.repo/upsert context {:table "patient" :resource {:id "pt-1" :name "name"}})
-     {:id "pt-1", :name "name"})
+     (pg.repo/upsert context {:table "patient" :resource {:id "pt-1" :name "name" :jcol {:a 1} :tags ["a" "b"]}})
+     {:id "pt-1", :name "name" :jcol {:a 1} :tags ["a" "b"]})
 
 
     (pg.repo/upsert context {:table "patient" :resource {:id "pt-2" :name "name"}})
@@ -159,21 +163,38 @@
 
     (pg/execute! context {:sql "truncate patient"})
 
+
+    (pg/execute! context {:sql "drop table if exists just_test"})
+    (pg/execute! context {:sql "create table just_test (tagsi int[], tags text[], tagsd timestamptz[])"})
+    (matcho/match
+        (pg.repo/get-table-definition  context "just_test")
+      {:table "just_test",
+       :primary-key [],
+       :columns
+       {:tagsi {:position 1, :type "int4[]"},
+        :tags {:position 2, :type "text[]"},
+        :tagsd {:position 3, :type "timestamptz[]"}}})
+
+    (pg.repo/clear-table-definitions-cache context)
+    (pg.repo/get-table-definition  context "patient")
+
+    (pg/execute! context {:sql ["SELECT * FROM information_schema.columns WHERE table_name = ?" "patient"]})
+
     (def cm (pg.repo/open-loader context {:table "patient"}))
 
     (doseq [i (range 5)]
-      (pg.repo/load-resource cm {:id (str "rc" i) :name (str "pt-" i)}))
+      (pg.repo/load-resource context cm {:id (str "rc" i) :name (str "pt-" i) :jcol {:a i} :tags [(str "t" i) (str "t" i i)]}))
 
-    (pg.repo/close-loader cm)
+    (pg.repo/close-loader context cm)
 
 
     (matcho/match
         (pg.repo/select context {:table "patient"})
-      [{:id "rc0" :name "pt-0"}
-       {:id "rc1" :name "pt-1"}
-       {:id "rc2" :name "pt-2"}
-       {:id "rc3" :name "pt-3"}
-       {:id "rc4" :name "pt-4"}
+      [{:id "rc0" :name "pt-0" :jcol {:a 0} :tags ["t0" "t00"]}
+       {:id "rc1" :name "pt-1" :jcol {:a 1} :tags ["t1" "t11"]}
+       {:id "rc2" :name "pt-2" :jcol {:a 2} :tags ["t2" "t22"]}
+       {:id "rc3" :name "pt-3" :jcol {:a 3} :tags ["t3" "t33"]}
+       {:id "rc4" :name "pt-4" :jcol {:a 4} :tags ["t4" "t44"]}
        nil?]))
 
 

@@ -20,6 +20,8 @@
            [org.postgresql.util PGobject]))
 
 
+
+
 (defn json-parse [s]
   (cheshire.core/parse-string s keyword))
 
@@ -177,6 +179,7 @@
 
 (def ^bytes NEW_LINE (.getBytes "\n"))
 (def ^bytes TAB (.getBytes "\t"))
+(def ^bytes X01 (.getBytes "\u0001"))
 
 (defn load [ctx sql cb]
   (with-open [^Connection c (connection ctx)]
@@ -192,23 +195,66 @@
         (finally
           (.endCopy  ci))))))
 
-(defn open-copy-manager  [ctx sql]
-  (let [^Connection c (connection ctx)
+(defn open-copy-manager  [context sql]
+  (let [^Connection c (connection context)
         ^CopyManager cm (CopyManager. (.unwrap ^Connection c PGConnection))]
-    (.copyIn cm sql)))
+    (system/info context ::open-copy-manager sql)
+    {:copy  (.copyIn cm sql)
+     :sql sql
+     :connection c}))
 
-(defn close-copy-manger [^CopyIn ci]
-  (.endCopy ci))
+(defn close-copy-manger [context {ci :copy c :connection sql :sql}]
+  (system/info context ::close-copy-manager sql)
+  (try (.endCopy ^CopyIn ci)  (catch Exception e (system/error context ::close-copy-manager (.getMessage e))))
+  (try (.close ^Connection c) (catch Exception e (system/error context ::close-copy-manager (.getMessage e)))))
 
-(defn copy-write-column [^CopyIn ci ^String s]
-  (let [^bytes bt (.getBytes s)]
+(import '[com.fasterxml.jackson.databind ObjectMapper])
+(def mapper (ObjectMapper.))
+
+(defn escaped-string [x]
+  (let [es (.writeValueAsString ^ObjectMapper mapper x)] (subs es 1 (dec (count es)))))
+
+(defn copy-write-column [{^CopyIn ci :copy} ^String s]
+  (let [^bytes bt (.getBytes ^String (escaped-string s))]
     (.writeToCopy ci bt 0 (count bt))))
 
-(defn copy-write-new-line [^CopyIn ci]
+(defn copy-write-json-column [{^CopyIn ci :copy} val]
+  (let [^bytes bt (.getBytes (cheshire.core/generate-string val))]
+    (.writeToCopy ci bt 0 (count bt))))
+
+
+(defn alpha-num? [s]
+  (some? (re-matches #"^[a-zA-Z][a-zA-Z0-9]*$" s)))
+
+
+
+(defn- to-array-list [arr]
+  (->> arr
+       (mapv (fn [x]
+               (let [x (if (keyword? x) (name x) x)]
+                 (if (string? x)
+                   (if (alpha-num? x) x (str "'" (escaped-string x) "'"))
+                   (if (number? x)
+                     x
+                     (assert false (pr-str x)))))))
+       (str/join ",")))
+
+(defn- to-array-litteral [arr]
+  (str "{" (to-array-list arr) "}"))
+
+(defn copy-write-array-column [{^CopyIn ci :copy} val]
+  (let [^bytes bt (.getBytes ^String (to-array-litteral val))]
+    (.writeToCopy ci bt 0 (count bt))))
+
+(defn copy-write-new-line [{^CopyIn ci :copy}]
   (.writeToCopy ci NEW_LINE 0 1))
 
-(defn copy-write-tab [^CopyIn ci]
+(defn copy-write-tab [{^CopyIn ci :copy}]
   (.writeToCopy ci TAB 0 1))
+
+(defn copy-write-x01 [{^CopyIn ci :copy}]
+  (.writeToCopy ci X01 0 1))
+
 
 (defn copy [ctx sql cb]
   (with-open [^Connection c (connection ctx)]

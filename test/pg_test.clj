@@ -134,23 +134,28 @@
 
   (def copy-context (system/start-system {:services ["pg"] :pg cfg}))
 
-  (pg/execute! copy-context {:sql "create table if not exists _copy_test (id int primary key, label text);"})
+  (pg/execute! copy-context {:sql "drop table if exists _copy_test;"})
+  (pg/execute! copy-context {:sql "create table if not exists _copy_test (id int primary key, label text, tags text[], resource jsonb);"})
 
   (pg/execute! copy-context {:sql "select * from _copy_test"})
   (pg/execute! copy-context {:sql "truncate _copy_test"})
 
-  (def ci (pg/open-copy-manager copy-context "copy _copy_test (id,label) FROM STDIN csv delimiter e'\\t'"))
+  (def ci (pg/open-copy-manager copy-context "copy _copy_test (id,label,tags, resource) FROM STDIN csv DELIMITER E'\\x01' QUOTE E'\\x02'"))
 
   (pg/copy-write-column ci "1")
-  (pg/copy-write-tab ci)
+  (pg/copy-write-x01 ci)
   (pg/copy-write-column ci "item-1")
+  (pg/copy-write-x01 ci)
+  (pg/copy-write-array-column ci ["a", "b", "c"])
+  (pg/copy-write-x01 ci)
+  (pg/copy-write-json-column ci {:a 1 :b 2})
   (pg/copy-write-new-line ci)
 
-  (pg/close-copy-manger ci)
+  (pg/close-copy-manger copy-context ci)
 
   (matcho/match
       (pg/execute! copy-context {:sql "select * from _copy_test"})
-      [{:id 1, :label "item-1"}])
+      [{:id 1, :label "item-1" :tags ["a", "b", "c"] :resource {:a 1 :b 2}}])
 
 
   (system/stop-system copy-context)

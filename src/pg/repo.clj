@@ -58,7 +58,10 @@
         :columns (->> (pg/execute! context {:dsql (columns-dsql table-name* table-schema)})
                       (reduce (fn [acc col]
                                 (assoc acc (keyword (:name col))
-                                       (cond-> {:position (:position col) :type (:type col)}
+                                       (cond-> {:position (:position col) :type (let [tp (:type col)]
+                                                                                  (if (str/starts-with? tp "_")
+                                                                                    (str (subs tp 1) "[]")
+                                                                                    tp))}
                                          (= "NO" (:is_nullable col)) (assoc :required true)
                                          (:default col) (assoc :default (:default col)))))
                               {}))}))))
@@ -240,7 +243,7 @@
   (let [table-def (get-table-definition context table)
         columns (keys (:columns table-def))
         columns-resource (keys (dissoc (:columns table-def) :resource))
-        sql (str "COPY " (:table table-def) "( " (->> columns (mapv name) (str/join ",")) " )  FROM STDIN csv quote e'\\x01' delimiter e'\\t'" )]
+        sql (str "COPY " (:table table-def) "( " (->> columns (mapv (fn [x] (str "\"" (name x)"\""))) (str/join ",")) " )  FROM STDIN csv quote e'\\x01' delimiter e'\\t'" )]
     (system/info context ::copy sql)
     (pg/load context sql
              (fn [w wt wnl]
@@ -259,28 +262,46 @@
     {}))
 
 (defn open-loader [context {table :table}]
- (let [table-def (get-table-definition context table)
-        columns (keys (:columns table-def))
-        columns-resource (keys (dissoc (:columns table-def) :resource))
-        sql (str "COPY " (:table table-def) "( " (->> columns (mapv name) (str/join ",")) " )  FROM STDIN csv quote e'\\x01' delimiter e'\\t'" )]
-    (system/info context ::open-copy-manager sql)
+  (let [table-def (get-table-definition context table)
+        columns (:columns table-def)
+        sql (str "COPY " (:table table-def) "( " (->> columns keys (mapv (fn [x] (str "\"" (name x)"\""))) (str/join ",")) " )  FROM STDIN csv DELIMITER E'\\x01' QUOTE E'\\x02'" )]
     {:copy-manager (pg/open-copy-manager context sql)
      :sql sql
-     :columns columns
-     :columns-resource columns-resource}))
+     :columns columns}))
 
-(defn close-loader [{cm :copy-manager}]
-  (pg/close-copy-manger cm))
+(defn close-loader [context {cm :copy-manager}]
+  (pg/close-copy-manger context cm))
 
-(defn load-resource [{columns :columns columns-resource :columns-resource cm :copy-manager} res]
-  (loop [[c & cs] columns]
-    (if c
-      (do
-        (if (= :resource c)
-          (pg/copy-write-column cm (cheshire.core/generate-string (apply dissoc res columns-resource)))
-          (when-let [v (get res c)]
-            (pg/copy-write-column cm (str v))))
-        (when (seq cs) (pg/copy-write-tab cm))
-        (recur cs))
-      (pg/copy-write-new-line cm))))
+;; (if-let [v (get resource col-name)]
+;;   (cond
+;;     (= "jsonb" (:type col-def))
+;;     (assoc acc col-name [:pg/param (cheshire.core/generate-string v)])
+;;     :else
+;;     (if (vector? v)
+;;       (assoc acc col-name [:pg/array-param :text v])
+;;       (assoc acc col-name [:pg/param v])))
+;;   acc)
+;; columns-resource (keys (dissoc (:columns table-def) :resource))
+(defn load-resource [context {columns :columns columns-resource :columns-resource cm :copy-manager} res]
+  (let [columns-resource (keys (dissoc columns :resource))
+        resource-column (dissoc res columns-resource)]
+    (loop [[[col-name col-def :as c] & cs] columns]
+      (if c
+        (do
+          (if (and (= :resource col-name) (= "jsonb" (:type col-def)))
+            (pg/copy-write-json-column cm resource-column)
+            (let [v (get res col-name)]
+              (when (not (nil? v))
+                (cond
+                  (= "jsonb" (:type col-def))
+                  (pg/copy-write-json-column cm v)
+
+                  (str/ends-with?  (:type col-def) "[]" )
+                  (pg/copy-write-array-column cm v)
+
+                  :else
+                  (pg/copy-write-column cm (str v))))))
+          (when (seq cs) (pg/copy-write-x01 cm))
+          (recur cs))
+        (pg/copy-write-new-line cm)))))
 

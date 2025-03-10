@@ -93,7 +93,7 @@
         (system/info ctx ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
         res)
       (catch Exception e
-        (system/info ctx ::error sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
+        (system/info ctx ::error (.getMessage e) {:sql sql :duration (/ (- (System/nanoTime) start) 1000000.0)})
         (let [msg (.getMessage e) ]
           (if-let [[_ pos] (and (str/includes? msg "Position:") (re-find #"Position: (\d+)" msg))]
             (let [sql (first sql)

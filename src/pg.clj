@@ -310,9 +310,10 @@
   (let [migrations (->> (pg.migrations/read-migrations)
                         (reduce (fn [acc {id :id :as m}]
                                   (assoc acc id m)) {}))
-        rollback-migrations (execute! context {:dsql {:select :* :from :_migrations :where (when id [:= :id id])
+        rollback-migrations (execute! context {:dsql {:select :* :from :_migrations
+                                                      :where (when (and id (not (= :all id))) [:= :id id])
                                                       :order-by [:pg/desc :ts]
-                                                      :limit 1}})]
+                                                      :limit (when (and id (not (= :all id))) 1)}})]
     (doseq [m rollback-migrations]
       (when-let [md (get migrations (:id m))]
         (system/info context ::migration-down (:id m))

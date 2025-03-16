@@ -189,9 +189,10 @@
                            (let [^bytes bt (.getBytes s)]
                              (.writeToCopy ci bt 0 (count bt))))
           write-new-line (fn wr [] (.writeToCopy ci NEW_LINE 0 1))
-          write-tab      (fn wr [] (.writeToCopy ci TAB 0 1))]
+          write-sep      (fn wr [] (.writeToCopy ci X01 0 1))]
       (try
-        (cb write-column write-tab write-new-line)
+        (cb write-column write-sep write-new-line)
+        (catch Exception e (println :ERROR e))
         (finally
           (.endCopy  ci))))))
 
@@ -286,12 +287,12 @@
   (pg.migrations/generate-migration id))
 
 (defn migrate-prepare [context]
-  (execute! context {:sql "create table if not exists _migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
+  (execute! context {:sql "create table if not exists public._migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
 
 (defn migrate-up [context & [id]]
   (let [migrations (cond->> (pg.migrations/read-migrations)
                      id (filterv (fn [x] (= id (:id x)))))
-        migrations-done (->> (execute! context {:sql "select * from _migrations"})
+        migrations-done (->> (execute! context {:sql "select * from public._migrations"})
                              (reduce (fn [acc {id :id :as m}]
                                        (assoc acc id m)) {}))]
     (doseq [m migrations]
@@ -300,7 +301,7 @@
         (try
           (doseq [sql (:up m)]
             (pg/execute! context {:sql sql}))
-          (pg/execute! context {:sql ["insert into _migrations (id, file) values (?, ?)" (:id m) (:file m)]})
+          (pg/execute! context {:sql ["insert into public._migrations (id, file) values (?, ?)" (:id m) (:file m)]})
           (catch Exception e
             (doseq [sql (:down m)]
               (try (pg/execute! context {:sql sql}) (catch Exception _e)))

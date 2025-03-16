@@ -239,32 +239,15 @@
 (defn truncate [context {table :table}]
   (pg/execute! context {:sql (str "TRUNCATE " table)}))
 
-(defn load [context {table :table} f]
-  (let [table-def (get-table-definition context table)
-        columns (keys (:columns table-def))
-        columns-resource (keys (dissoc (:columns table-def) :resource))
-        sql (str "COPY " (:table table-def) "( " (->> columns (mapv (fn [x] (str "\"" (name x)"\""))) (str/join ",")) " )  FROM STDIN csv quote e'\\x01' delimiter e'\\t'" )]
-    (system/info context ::copy sql)
-    (pg/load context sql
-             (fn [w wt wnl]
-               (let [wr (fn [res]
-                          (loop [[c & cs] columns]
-                            (if c
-                              (do
-                                (if (= :resource c)
-                                  (w (cheshire.core/generate-string (apply dissoc res columns-resource)))
-                                  (when-let [v (get res c)]
-                                    (w (str v))))
-                                  (when (seq cs) (wt))
-                                  (recur cs))
-                              (wnl))))]
-                 (f wr))))
-    {}))
+(defn copy-sql [{table :table columns :columns}]
+  (str "COPY " table "( " (->> columns keys (mapv (fn [x] (str "\"" (name x)"\""))) (str/join ",")) " )  FROM STDIN csv DELIMITER E'\\x01' QUOTE E'\\x02'" ))
+
+
 
 (defn open-loader [context {table :table}]
   (let [table-def (get-table-definition context table)
         columns (:columns table-def)
-        sql (str "COPY " (:table table-def) "( " (->> columns keys (mapv (fn [x] (str "\"" (name x)"\""))) (str/join ",")) " )  FROM STDIN csv DELIMITER E'\\x01' QUOTE E'\\x02'" )]
+        sql (copy-sql table-def)]
     {:copy-manager (pg/open-copy-manager context sql)
      :sql sql
      :columns columns}))
@@ -305,3 +288,10 @@
           (recur cs))
         (pg/copy-write-new-line cm)))))
 
+
+(defn load [context {table :table} f]
+  (let [loader (open-loader context {:table table})]
+    (try
+      (f #(load-resource context loader %))
+      (finally
+        (close-loader context loader)))))

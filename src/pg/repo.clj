@@ -267,7 +267,7 @@
 ;; columns-resource (keys (dissoc (:columns table-def) :resource))
 (defn load-resource [context {columns :columns columns-resource :columns-resource cm :copy-manager} res]
   (let [columns-resource (keys (dissoc columns :resource))
-        resource-column (dissoc res columns-resource)]
+        resource-column (apply dissoc res columns-resource)]
     (loop [[[col-name col-def :as c] & cs] columns]
       (if c
         (do

@@ -227,14 +227,12 @@
 (defn alpha-num? [s]
   (some? (re-matches #"^[a-zA-Z][a-zA-Z0-9]*$" s)))
 
-
-
 (defn- to-array-list [arr]
   (->> arr
        (mapv (fn [x]
                (let [x (if (keyword? x) (name x) x)]
                  (if (string? x)
-                   (if (alpha-num? x) x (str "'" (escaped-string x) "'"))
+                   (if (alpha-num? x) x (str "\"" (escaped-string x) "\""))
                    (if (number? x)
                      x
                      (assert false (pr-str x)))))))

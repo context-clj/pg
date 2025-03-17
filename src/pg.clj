@@ -61,6 +61,15 @@
   (with-open [^Connection conn (datasource ctx)]
     (f conn)))
 
+(defn transaction [ctx]
+  (get ctx ::transaction))
+
+(defmacro with-transaction [ctx & body]
+  `(next.jdbc/transact (datasource ~ctx)
+                       (fn [tx#]
+                         (let [~ctx (assoc ~ctx :pg/transaction tx#)] ;; TODO resolve kw namespace dynamicly
+                           ~@body))))
+
 (defn format-dsql [dql]
   (dsql.pg/format dql))
 
@@ -80,15 +89,15 @@
         (throw e)))))
 
 ;; TODO: hooks before sql and after to instrument - use open telemetry
-(defn execute! [ctx {sql :sql dql :dsql :as opts}]
+(defn execute! [ctx {sql :sql dql :dsql}]
   (assert (or sql dql) ":sql or :dsql should be provided")
   (let [sql (cond (vector? sql) sql
                   (string? sql) [sql]
                   dql (format-dsql dql))
-        start (System/nanoTime)]
-    #_(system/info ctx ::executing sql)
+        start (System/nanoTime)
+        conn (or (transaction ctx) (datasource ctx))]
     (try
-      (let [res (->> (jdbc/execute! (datasource ctx) sql)
+      (let [res (->> (jdbc/execute! conn sql)
                      (mapv coerce))]
         (system/info ctx ::executed sql {:duration (/ (- (System/nanoTime) start) 1000000.0)})
         res)

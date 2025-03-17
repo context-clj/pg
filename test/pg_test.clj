@@ -4,11 +4,9 @@
             [pg.repo]
             [cheshire.core]
             [matcho.core :as matcho]
-            [clojure.test :as t]))
+            [clojure.test :refer [deftest is]]))
 
-
-
-(t/deftest test-pg
+(deftest test-pg
 
   (def cfg {:host "localhost" :port  5401 :database "context_pg" :user "admin" :password "admin"})
 
@@ -128,7 +126,7 @@
 
   )
 
-(t/deftest test-copy-functions
+(deftest test-copy-functions
 
   (def cfg {:host "localhost" :port  5401 :database "context_pg" :user "admin" :password "admin"})
 
@@ -161,3 +159,41 @@
   (system/stop-system copy-context)
 
   )
+
+(deftest test-transactions
+  (def cfg {:host "localhost" :port 5401 :database "context_pg" :user "admin" :password "admin"})
+  (def context (system/start-system {:services ["pg"] :pg cfg}))
+
+  (pg/execute! context {:sql "drop table if exists transaction_test"})
+  (pg/execute! context {:sql "create table if not exists transaction_test (id int primary key, value text)"})
+
+  ;; Test successful transaction
+  (pg/with-transaction context
+    (pg/execute! context {:sql ["insert into transaction_test (id, value) values (1, 'test1')"]})
+    (pg/execute! context {:sql ["insert into transaction_test (id, value) values (2, 'test2')"]})
+    (is (some? (:pg/transaction context))))
+  
+  (is (nil? (:pg/transaction context)))
+
+  (matcho/match
+   (pg/execute! context {:sql "select * from transaction_test"})
+    [{:id 1, :value "test1"}
+     {:id 2, :value "test2"}])
+
+  ;; Test rollback transaction
+  (try
+    (pg/with-transaction context
+      (is (some? (:pg/transaction context)))
+      (pg/execute! context {:sql ["insert into transaction_test (id, value) values (3, 'test3')"]})
+      (pg/execute! context {:sql ["insert into transaction_test (id, value) values (4, 'test4')"]})
+      (throw (Exception. "Simulated failure")))
+    (catch Exception _))
+
+  (is (nil? (:pg/transaction context)))
+
+  (matcho/match
+   (pg/execute! context {:sql "select * from transaction_test"})
+    [{:id 1, :value "test1"}
+     {:id 2, :value "test2"}])
+
+  (system/stop-system context))

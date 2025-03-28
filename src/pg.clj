@@ -19,9 +19,6 @@
            [org.postgresql.jdbc PgArray]
            [org.postgresql.util PGobject]))
 
-
-
-
 (defn json-parse [s]
   (cheshire.core/parse-string s keyword))
 
@@ -224,14 +221,17 @@
 (defn escaped-string [x]
   (let [es (.writeValueAsString ^ObjectMapper mapper x)] (subs es 1 (dec (count es)))))
 
+(defn remove-x01-symbol [^String s]
+  (-> (str/replace s #"\x00" "")
+      (str/replace #"\\u0000" "")))
+
 (defn copy-write-column [{^CopyIn ci :copy} ^String s]
-  (let [^bytes bt (.getBytes ^String (escaped-string s))]
+  (let [^bytes bt (.getBytes ^String (remove-x01-symbol (escaped-string s)))]
     (.writeToCopy ci bt 0 (count bt))))
 
 (defn copy-write-json-column [{^CopyIn ci :copy} val]
-  (let [^bytes bt (.getBytes (cheshire.core/generate-string val))]
+  (let [^bytes bt (.getBytes ^String (remove-x01-symbol (cheshire.core/generate-string val)))]
     (.writeToCopy ci bt 0 (count bt))))
-
 
 (defn alpha-num? [s]
   (some? (re-matches #"^[a-zA-Z][a-zA-Z0-9]*$" s)))
@@ -241,7 +241,7 @@
        (mapv (fn [x]
                (let [x (if (keyword? x) (name x) x)]
                  (if (string? x)
-                   (if (alpha-num? x) x (str "\"" (escaped-string x) "\""))
+                   (if (alpha-num? x) x (str "\"" (remove-x01-symbol (escaped-string x)) "\""))
                    (if (number? x)
                      x
                      (assert false (pr-str x)))))))
@@ -382,7 +382,7 @@
     :user      {:type "string"  :required true}
     :database  {:type "string"  :required true}
     :password  {:type "string"  :sensitive true :required true}
-    :pool-size {:type "integer" :default 5 :validator pos-int?}}})
+    :pool-size {:type "integer" :default 30 :validator pos-int?}}})
 
 (system/defstart
   [context config]

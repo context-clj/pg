@@ -1275,12 +1275,15 @@
 
 (defmethod ql/to-sql
   :pg/cte
-  [acc opts {with :with sel :select}]
+  [acc opts {with :with sel :select not-materialized :not-materialized}]
   (-> acc
       (conj "WITH")
       (ql/reduce-separated2 "," (fn [acc [k v]]
                                   (-> acc
-                                      (into [(name k) "AS" "("])
+                                      (into [(name k)
+                                             "AS"
+                                             (if not-materialized "NOT MATERIALIZED" "MATERIALIZED")
+                                             "("])
                                       (ql/to-sql opts (update v :ql/type (fn [x] (or x :pg/select))))
                                       (conj ")")))
                             (if (sequential? with) (partition 2 with) with))

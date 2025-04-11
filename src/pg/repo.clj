@@ -224,6 +224,9 @@
   (-> (select context opts)
       first))
 
+(defn read-all [context {table :table match :match :as opts}]
+  (select context opts))
+
 (defn delete-dsql [table where match]
   {:ql/type :pg/delete
    :from (keyword table)

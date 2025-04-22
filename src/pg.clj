@@ -35,8 +35,7 @@
                                 (.getValue ^PGobject v))
                               (instance? java.math.BigDecimal v) (double v)
                               (instance? PgArray v) (vec (.getArray ^PgArray v))
-                              :else v))
-                 ) {})))
+                              :else v))) {})))
 
 
 (defn readonly-connection [ctx]
@@ -103,7 +102,7 @@
         res)
       (catch Exception e
         (system/info ctx ::error (.getMessage e) {:sql sql :duration (/ (- (System/nanoTime) start) 1000000.0)})
-        (let [msg (.getMessage e) ]
+        (let [msg (.getMessage e)]
           (if-let [[_ pos] (and (str/includes? msg "Position:") (re-find #"Position: (\d+)" msg))]
             (let [sql (first sql)
                   pos (Integer/parseInt pos)]
@@ -113,6 +112,22 @@
                                       "<*>"
                                       (subs sql pos (min (+ pos 10) (count sql)))))))
             (throw e)))))))
+
+(defn q [q ctx & params]
+  (letfn [(format-sql [q params]
+            (->> params
+                 (remove nil?)
+                 (cons (-> (str/join " " q)
+                           (str/replace #"\(\s" "(")
+                           (str/replace #"\s\)" ")")
+                           (str/replace #"\s\," ",")))
+                 (into [])))
+          (sanitize [q]
+            (->> (flatten q)
+                 (remove nil?)
+                 (remove #(str/starts-with? % "--"))
+                 (map str)))]
+    (pg/execute! ctx {:sql (-> q sanitize (format-sql params))})))
 
 (defn array-of [ctx type array]
   (with-connection ctx (fn [c] (.createArrayOf ^Connection c type (into-array String array)))))
@@ -131,7 +146,7 @@
 (Class/forName "org.postgresql.Driver")
 
 (defn get-connection [config]
-  (let [jdbc-url (str "jdbc:postgresql://"(:host config) ":"(:port config) "/" (:database config))]
+  (let [jdbc-url (str "jdbc:postgresql://" (:host config) ":" (:port config) "/" (:database config))]
     (DriverManager/getConnection jdbc-url (:user config) (:password config))))
 
 ;; TODO: add params
@@ -361,20 +376,20 @@
 ;;     (get-connection config)))
 
 #_(defn start [system & [opts]]
-  (system/start-service
-   system
-   (let [connection (or opts (default-connection))
-         _ (system/info system ::connecting (:database connection) (dissoc connection :password))
-         db (get-pool connection)]
-     (jdbc/execute! db ["select 1"])
-     (system/info system ::connected (:database connection) (dissoc connection :password))
-     {:datasource db :connection/info connection})))
+    (system/start-service
+     system
+     (let [connection (or opts (default-connection))
+           _ (system/info system ::connecting (:database connection) (dissoc connection :password))
+           db (get-pool connection)]
+       (jdbc/execute! db ["select 1"])
+       (system/info system ::connected (:database connection) (dissoc connection :password))
+       {:datasource db :connection/info connection})))
 
 #_(defn stop [system]
-  (system/stop-service
-   system
-   (when-let [^HikariDataSource conn (system/get-system-state system [:datasoruce])]
-     (.close conn))))
+    (system/stop-service
+     system
+     (when-let [^HikariDataSource conn (system/get-system-state system [:datasoruce])]
+       (.close conn))))
 
 (system/defmanifest
   {:description "postgresql service"
@@ -417,8 +432,4 @@
 
   (def sys (system/start-system {:services ["pg"] :pg pg-config}))
   (execute! sys {:sql ["select 1"]})
-  (system/stop-system sys)
-
-
-
-  )
+  (system/stop-system sys))

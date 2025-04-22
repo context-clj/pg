@@ -61,6 +61,9 @@
 (defn transaction [ctx]
   (get ctx ::transaction))
 
+(defn rollback [ctx]
+  (.rollback ^Connection (transaction ctx)))
+
 (defmacro with-transaction [ctx & body]
   `(next.jdbc/transact (datasource ~ctx)
                        (fn [tx#]

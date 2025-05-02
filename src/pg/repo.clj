@@ -224,6 +224,9 @@
   (-> (select context opts)
       first))
 
+(defn read-all [context {table :table match :match :as opts}]
+  (select context opts))
+
 (defn delete-dsql [table where match]
   {:ql/type :pg/delete
    :from (keyword table)
@@ -242,15 +245,18 @@
 (defn copy-sql [{table :table columns :columns}]
   (str "COPY " table "( " (->> columns keys (mapv (fn [x] (str "\"" (name x)"\""))) (str/join ",")) " )  FROM STDIN csv DELIMITER E'\\x01' QUOTE E'\\x02'" ))
 
-
-
 (defn open-loader [context {table :table}]
   (let [table-def (get-table-definition context table)
         columns (:columns table-def)
         sql (copy-sql table-def)]
-    {:copy-manager (pg/open-copy-manager context sql)
+    {:type :loader
+     :copy-manager (pg/open-copy-manager context sql)
      :sql sql
      :columns columns}))
+
+(defn open-inserter [context {table :table}]
+  {:type :inserter
+   :table table})
 
 (defn close-loader [context {cm :copy-manager}]
   (pg/close-copy-manger context cm))
@@ -265,7 +271,13 @@
 ;;       (assoc acc col-name [:pg/param v])))
 ;;   acc)
 ;; columns-resource (keys (dissoc (:columns table-def) :resource))
-(defn load-resource [context {columns :columns columns-resource :columns-resource cm :copy-manager} res]
+
+(defn copy-resource
+  [context
+   {columns :columns
+    columns-resource :columns-resource
+    cm :copy-manager}
+   res]
   (let [columns-resource (keys (dissoc columns :resource))
         resource-column (apply dissoc res columns-resource)]
     (loop [[[col-name col-def :as c] & cs] columns]
@@ -288,6 +300,11 @@
           (recur cs))
         (pg/copy-write-new-line cm)))))
 
+(defn load-resource
+  [context {:as loader, loader-type :type} res]
+  (case loader-type
+    :loader (copy-resource context loader res)
+    :inserter (insert context (assoc loader :resource res))))
 
 (defn load [context {table :table} f]
   (let [loader (open-loader context {:table table})]

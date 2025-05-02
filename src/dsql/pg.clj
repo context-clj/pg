@@ -717,6 +717,14 @@
       (ql/to-sql opts r)))
 
 (defmethod ql/to-sql
+  :jsonb/?|
+  [acc opts [_ l r]]
+  (-> acc
+      (ql/to-sql opts l)
+      (conj "??|")
+      (ql/to-sql opts r)))
+
+(defmethod ql/to-sql
   :jsonb/->
   [acc opts [_ col k]]
   (-> acc

@@ -57,6 +57,7 @@
 
 (defn create-pg [pg-name db user password port]
   (docker "run" {:name pg-name
+                 :shm-size "1g"
                  :e {:POSTGRES_DB db
                      :POSTGRES_USER user
                      :POSTGRES_PASSWORD password}
@@ -74,12 +75,12 @@
 
 (defn ensure-pg
   "returns postgresql config"
-  [pg-name]
+  [pg-name & opts]
   (let [port (free-port)
         user "postgres"
         db   "postgres"
         password pg-name
-        port (if (:success  (docker ["start" pg-name]))
+        port (if (:success  (docker (into ["start" pg-name] opts)))
                (get-port pg-name)
                (do (create-pg pg-name db user password port)
                    port))

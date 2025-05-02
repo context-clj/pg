@@ -2,6 +2,7 @@ services:
   postgres:
     container_name: context_pg
     image: postgres:latest
+    shm_size: 1g
     environment:
       POSTGRES_DB: context_pg
       POSTGRES_USER: admin

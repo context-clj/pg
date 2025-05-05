@@ -166,10 +166,10 @@
       (.setJdbcUrl (str "jdbc:postgresql://" (:host conn) ":" (:port conn) "/" (:database conn)))
       (.setUsername (:user conn))
       (.setPassword (:password conn))
-      (.setMaximumPoolSize 10)
-      (.setMinimumIdle 5)
-      (.setIdleTimeout 300000)
-      (.setConnectionTimeout 20000)
+      (.setMaximumPoolSize (:max-pool-size conn))
+      (.setMinimumIdle (:min-idle conn))
+      (.setIdleTimeout (:idle-timeout conn))
+      (.setConnectionTimeout (:connection-timeout conn))
       (.addDataSourceProperty "cachePrepStmts" "true")
       (.addDataSourceProperty "stringtype" "unspecified")
       (.addDataSourceProperty "prepStmtCacheSize" "250")
@@ -400,7 +400,10 @@
     :user      {:type "string"  :required true}
     :database  {:type "string"  :required true}
     :password  {:type "string"  :sensitive true :required true}
-    :pool-size {:type "integer" :default 30 :validator pos-int?}}})
+    :max-pool-size {:type "integer" :default 30 :validator pos-int?}
+    :min-idle {:type "integer" :default 5 :validator pos-int?}
+    :idle-timeout {:type "integer" :default 300000 :validator pos-int?}
+    :connection-timeout {:type "integer" :default 20000 :validator pos-int?}}})
 
 (system/defstart
   [context config]

@@ -126,7 +126,7 @@
    [:join :pg/join]
    [:where :pg/and]
    [:group-by :pg/group-by]
-   [:having :pg/having]
+   [:having :pg/and]
    [:window :pg/window]
    [:union :pg/union] #_"NOTE: should it be after :where? (or even lower?)"
    [:union-all :pg/union-all]

@@ -67,6 +67,8 @@
   `(next.jdbc/transact (datasource ~ctx)
                        (fn [tx#]
                          (let [~ctx (assoc ~ctx :pg/transaction tx#)] ;; TODO resolve kw namespace dynamicly
+                           (doseq [[k# v#] (:pg/transaction-params ~ctx)]
+                             (pg/execute! ~ctx {:sql (format "set local %s to %s" (name k#) v#)}))
                            ~@body))))
 
 (defn format-dsql [dql]

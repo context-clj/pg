@@ -66,7 +66,7 @@
     [{:id "init", :file "20250216211605_init",}
      {:id "add_pt_index", :file "20250216213534_add_pt_index",}])
 
-  (t/is (thrown? Exception (pg/migrate-up context "with_error")))
+  (is (thrown? Exception (pg/migrate-up context "with_error")))
 
   (pg/migrate-down context)
 
@@ -81,7 +81,7 @@
 
   (matcho/match (pg/execute! context {:sql "select * from _migrations"}) [nil?])
 
-  (t/is (thrown? Exception (pg/migrate-up context)))
+  (is (thrown? Exception (pg/migrate-up context)))
 
   (matcho/match
       (pg.repo/get-table-definition context "user_sessions")

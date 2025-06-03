@@ -821,7 +821,7 @@
      :select {:ql/type :pg/select
               :select :*
               :from :_ctp}}
-    ["WITH _ctp AS ( SELECT 1 as a , 2 as b ) , _ctp2 AS ( SELECT 1 as a , 2 as b ) SELECT * FROM _ctp"])
+    ["WITH _ctp AS MATERIALIZED ( SELECT 1 as a , 2 as b ) , _ctp2 AS MATERIALIZED ( SELECT 1 as a , 2 as b ) SELECT * FROM _ctp"])
 
   (format=
    {:ql/type :pg/cte-recursive

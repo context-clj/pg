@@ -316,7 +316,11 @@
 (defn migrate-prepare [context]
   (execute! context {:sql "create table if not exists public._migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
 
-(defn migrate-up [context & [id]]
+(defn migrate-up
+  "Apply migrations.
+  Without id, apply all migrations that weren't applied yet.
+  When id is provided, apply only the migration with that id."
+  [context & [id]]
   (let [migrations (cond->> (pg.migrations/read-migrations)
                      id (filterv (fn [x] (= id (:id x)))))
         migrations-done (->> (execute! context {:sql "select * from public._migrations"})
@@ -334,14 +338,19 @@
               (try (pg/execute! context {:sql sql}) (catch Exception _e)))
             (throw e)))))))
 
-(defn migrate-down [context & [id]]
+(defn migrate-down
+  "Roll back migrations.
+  Without id, roll back the last migration.
+  When id is provided, roll back the migration with that id.
+  If id is :all, roll back all migrations."
+  [context & [id]]
   (let [migrations (->> (pg.migrations/read-migrations)
                         (reduce (fn [acc {id :id :as m}]
                                   (assoc acc id m)) {}))
         rollback-migrations (execute! context {:dsql {:select :* :from :_migrations
-                                                      :where (when (and id (not (= :all id))) [:= :id id])
+                                                      :where (when (and id (not= :all id)) [:= :id id])
                                                       :order-by [:pg/desc :ts]
-                                                      :limit (when (and id (not (= :all id))) 1)}})]
+                                                      :limit (when-not (= :all id) 1)}})]
     (doseq [m rollback-migrations]
       (when-let [md (get migrations (:id m))]
         (system/info context ::migration-down (:id m))

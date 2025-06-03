@@ -310,25 +310,25 @@
            (finally (.endCopy  ci))))))
 
 
-(defn generate-migration [id]
-  (pg.migrations/generate-migration id))
+(defn generate-migration [name]
+  (pg.migrations/generate-migration name))
 
 (defn migrate-prepare [context]
   (execute! context {:sql "create table if not exists public._migrations (id text primary key, file text not null, ts timestamp default  CURRENT_TIMESTAMP)"}))
 
 (defn migrate-up
   "Apply migrations.
-  Without id, apply all migrations that weren't applied yet.
-  When id is provided, apply only the migration with that id."
-  [context & [id]]
+  Without file, apply all migrations that weren't applied yet.
+  When file is provided, apply only the migration with that file."
+  [context & [file]]
   (let [migrations (cond->> (pg.migrations/read-migrations)
-                     id (filterv (fn [x] (= id (:id x)))))
+                     file (filterv (fn [x] (= file (:file x)))))
         migrations-done (->> (execute! context {:sql "select * from public._migrations"})
-                             (reduce (fn [acc {id :id :as m}]
-                                       (assoc acc id m)) {}))]
+                             (reduce (fn [acc {file :file :as m}]
+                                       (assoc acc file m)) {}))]
     (doseq [m migrations]
-      (when-not (get migrations-done (:id m))
-        (system/info context ::migration-up (:id m))
+      (when-not (get migrations-done (:file m))
+        (system/info context ::migration-up (:file m))
         (try
           (doseq [sql (:up m)]
             (pg/execute! context {:sql sql}))
@@ -340,23 +340,23 @@
 
 (defn migrate-down
   "Roll back migrations.
-  Without id, roll back the last migration.
-  When id is provided, roll back the migration with that id.
-  If id is :all, roll back all migrations."
-  [context & [id]]
+  Without file, roll back the last migration.
+  When file is provided, roll back the migration with that file.
+  If file is :all, roll back all migrations."
+  [context & [file]]
   (let [migrations (->> (pg.migrations/read-migrations)
-                        (reduce (fn [acc {id :id :as m}]
-                                  (assoc acc id m)) {}))
+                        (reduce (fn [acc {file :file :as m}]
+                                  (assoc acc file m)) {}))
         rollback-migrations (execute! context {:dsql {:select :* :from :_migrations
-                                                      :where (when (and id (not= :all id)) [:= :id id])
+                                                      :where (when (and file (not= :all file)) [:= :file file])
                                                       :order-by [:pg/desc :ts]
-                                                      :limit (when-not (= :all id) 1)}})]
+                                                      :limit (when-not (= :all file) 1)}})]
     (doseq [m rollback-migrations]
-      (when-let [md (get migrations (:id m))]
-        (system/info context ::migration-down (:id m))
+      (when-let [md (get migrations (:file m))]
+        (system/info context ::migration-down (:file m))
         (doseq [sql (:down md)]
           (try (pg/execute! context {:sql sql}) (catch Exception _e)))
-        (pg/execute! context {:sql ["delete from _migrations where id = ?" (:id m)]})))))
+        (pg/execute! context {:sql ["delete from _migrations where file = ?" (:file m)]})))))
 
 #_(defmacro load-data [ctx writers & rest]
     (println :? writers)

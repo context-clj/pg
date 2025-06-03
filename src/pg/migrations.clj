@@ -39,10 +39,11 @@
       )))
 
 (defn process-migration-entry [entry entry-name]
-  (merge
-   (parse-migration (slurp entry))
-   {:id (second (str/split (str/replace entry-name #"\.sql$" "") #"_" 2))
-    :file (str/replace entry-name #"\.sql$" "")}))
+  (let [file (str/replace entry-name #"\.sql$" "")]
+    (merge
+     (parse-migration (slurp entry))
+     {:id file
+      :file file})))
 
 (defn is-sql-migration? [entry]
   (and (not (.isDirectory entry))

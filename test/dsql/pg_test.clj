@@ -240,6 +240,14 @@
   (format= [:jsonb/-> :resource :name]
            ["resource -> 'name'"])
 
+  (format= [:-> :resource :name]
+           ["resource -> 'name'"])
+
+  (format= [:-> :resource "var"]
+           ["resource -> 'name'"])
+
+
+
   (format= [:jsonb/-> :resource 0]
            ["resource -> 0"])
 

@@ -1532,7 +1532,11 @@
   (-> acc
       (conj "(")
       (ql/to-sql opts col)
-      (conj (str "-> " (ql/string-litteral (name k))))
+      (conj "-> ")
+      ((fn [acc]
+         (if (keyword? k)
+           (conj acc (ql/string-litteral (name k)))
+           (ql/to-sql acc opts k))) )
       (conj ")")))
 
 (defmethod ql/to-sql

@@ -43,7 +43,7 @@
 
   (pg/migrate-prepare context)
 
-  (pg/migrate-up context "init")
+  (pg/migrate-up context "20250216211605_init")
 
   (matcho/match
       (pg.repo/get-table-definition context "patient")
@@ -58,15 +58,15 @@
 
   (matcho/match
       (pg/execute! context {:sql "select * from _migrations"})
-    [{:id "init", :file "20250216211605_init",}])
+    [{:id "20250216211605_init", :file "20250216211605_init",}])
 
-  (pg/migrate-up context "add_pt_index")
+  (pg/migrate-up context "20250216213534_add_pt_index")
   (matcho/match
       (pg/execute! context {:sql "select * from _migrations"})
-    [{:id "init", :file "20250216211605_init",}
-     {:id "add_pt_index", :file "20250216213534_add_pt_index",}])
+    [{:id "20250216211605_init", :file "20250216211605_init",}
+     {:id "20250216213534_add_pt_index", :file "20250216213534_add_pt_index",}])
 
-  (is (thrown? Exception (pg/migrate-up context "with_error")))
+  (is (thrown? Exception (pg/migrate-up context "20250216220942_with_error")))
 
   (pg/migrate-down context)
 
@@ -74,7 +74,7 @@
 
   (matcho/match
       (pg/execute! context {:sql "select * from _migrations"})
-    [{:id "init", :file "20250216211605_init",}
+    [{:id "20250216211605_init", :file "20250216211605_init",}
      nil?])
 
   (pg/migrate-down context)

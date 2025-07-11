@@ -64,12 +64,14 @@
   (.rollback ^Connection (transaction ctx)))
 
 (defmacro with-transaction [ctx & body]
-  `(next.jdbc/transact (datasource ~ctx)
+  `(if (:pg/transaction ~ctx)
+     (do ~@body) ;; Already in transaction, just execute body
+     (next.jdbc/transact (datasource ~ctx) ;; No transaction, wrap in one
                        (fn [tx#]
-                         (let [~ctx (assoc ~ctx :pg/transaction tx#)] ;; TODO resolve kw namespace dynamicly
+                         (let [~ctx (assoc ~ctx :pg/transaction tx#)]
                            (doseq [[k# v#] (:pg/transaction-params ~ctx)]
                              (pg/execute! ~ctx {:sql (format "set local %s to %s" (name k#) v#)}))
-                           ~@body))))
+                           ~@body)))))
 
 (defn format-dsql [dql]
   (dsql.pg/format dql))

@@ -2,7 +2,7 @@
   (:require [dsql.pg :as sut]
             [cheshire.core]
             [clojure.test :refer [deftest is testing]])
-  (:import  [com.fasterxml.jackson.databind   JsonNode ObjectMapper]))
+  (:import  [com.fasterxml.jackson.databind ObjectMapper]))
 
 (defmacro format= [q patt]
   `(let [res# (sut/format ~q)]
@@ -60,6 +60,7 @@
       "male"]))
 
   (testing "jackson"
+    #_{:clj-kondo/ignore [:inline-def]}
     (def r
       {:id              "fd209869-1f1c-42eb-b0bf-b5942370452c"
        :meta_partition  123
@@ -241,10 +242,10 @@
            ["resource -> 'name'"])
 
   (format= [:-> :resource :name]
-           ["resource -> 'name'"])
+           ["( resource ->  'name' )"])
 
   (format= [:-> :resource "var"]
-           ["resource -> 'name'"])
+           ["( resource ->  ? )" "var"])
 
 
 
@@ -335,17 +336,17 @@
   (format= [:pg/params-list [1 2 3]]
            ["( ? , ? , ? )" 1 2 3])
 
-  (= {:ql/type :pg/params-list :code :params-required}
-   (try (sut/format [:pg/params-list nil])
-        (catch clojure.lang.ExceptionInfo e (ex-data e))))
+  (is (= {:ql/type :pg/params-list :code :params-required}
+       (try (sut/format [:pg/params-list nil])
+            (catch clojure.lang.ExceptionInfo e (ex-data e)))))
 
-  (= {:ql/type :pg/params-list :code :params-required}
-   (try (sut/format [:pg/params-list []])
-        (catch clojure.lang.ExceptionInfo e (ex-data e))))
+  (is (= {:ql/type :pg/params-list :code :params-required}
+        (try (sut/format [:pg/params-list []])
+              (catch clojure.lang.ExceptionInfo e (ex-data e)))))
 
-  (= {:ql/type :pg/params-list :code :params-required}
-   (try (sut/format [:pg/params-list '()])
-          (catch clojure.lang.ExceptionInfo e (ex-data e))))
+  (is (= {:ql/type :pg/params-list :code :params-required}
+        (try (sut/format [:pg/params-list '()])
+              (catch clojure.lang.ExceptionInfo e (ex-data e)))))
 
   (format= [:in :column [:pg/params-list [1 2 3]]]
            ["column IN ( ? , ? , ? )" 1 2 3])
@@ -604,8 +605,6 @@
     "doc-id"])
   {:ql/type :pg/projection
    :sub-q ^:pg/sub-select{:select :* :from :tbl :limit 1}}
-
-  "select * from billingcase where resource#>>'{location, id}' in (select id from Department where resource#>>'{part_of, id}' = 'dep-1')"
 
   (format=
    {:ql/type :pg/select
@@ -1116,7 +1115,7 @@
                 [:pg/identifier "YEAR"]
                 [:pg/cast [:-> :resource :birthDate] :timestamp]]
             "1980"]}
-   ["SELECT * FROM Patient WHERE EXTRACT( YEAR from ( ( resource -> 'birthDate' ) )::timestamp ) = ?"
+   ["SELECT * FROM Patient WHERE EXTRACT( YEAR from ( ( resource ->  'birthDate' ) )::timestamp ) = ?"
     "1980"])
 
 

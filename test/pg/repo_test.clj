@@ -16,6 +16,7 @@
 (defn ensure-context []
   (when-not @context-atom
     (println :connect)
+    #_{:clj-kondo/ignore [:inline-def]}
     (def context (system/start-system {:services ["pg" "pg.repo"] :pg cfg}))
     (reset! context-atom context)))
 
@@ -142,6 +143,7 @@
       {:id "r-9", :name "pt-9"}])
 
 
+    #_{:clj-kondo/ignore [:inline-def]}
     (def rows (atom []))
     (pg.repo/fetch
      context {:table "patient" :order-by :id}
@@ -180,6 +182,7 @@
 
     (pg/execute! context {:sql ["SELECT * FROM information_schema.columns WHERE table_name = ?" "patient"]})
 
+    #_{:clj-kondo/ignore [:inline-def]}
     (def cm (pg.repo/open-loader context {:table "patient"}))
 
     (doseq [i (range 5)]

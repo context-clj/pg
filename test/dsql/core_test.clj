@@ -5,12 +5,12 @@
 
 (defmethod sut/to-sql
   :test/text
-  [acc opts [_ data]]
+  [acc _opts [_ data]]
   (conj acc (sut/string-litteral data)))
 
 (defmethod sut/to-sql
   :test/param
-  [acc opts [_ data]]
+  [acc _opts [_ data]]
   (conj acc ["?" data]))
 
 (defmethod sut/to-sql
@@ -53,7 +53,7 @@
          (sut/format {} {:ql/type :test/select
                          :select {:resource :resource :string [:test/param "string"]}
                          :from :user}))))
-  
+
 
 
 

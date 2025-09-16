@@ -8,8 +8,10 @@
 
 (deftest test-pg
 
+  #_{:clj-kondo/ignore [:inline-def]}
   (def cfg {:host "localhost" :port  5401 :database "context_pg" :user "admin" :password "admin"})
 
+  #_{:clj-kondo/ignore [:inline-def]}
   (def context (system/start-system {:services ["pg"] :pg cfg}))
 
   (matcho/match
@@ -20,7 +22,7 @@
   (pg/execute! context {:sql "drop table if  exists test"})
   (pg/execute! context {:sql "create table if not exists test  (resource jsonb)"})
 
-  (dotimes [i 20]
+  (dotimes [_ 20]
     (pg/copy context "copy test (resource) FROM STDIN csv quote e'\\x01' delimiter e'\\t'"
              (fn [w]
                (doseq [i (range 100)] (w (cheshire.core/generate-string {:a i}))))))
@@ -29,9 +31,9 @@
       (pg/execute! context {:sql ["select count(*) from test"]})
     [{:count 2000}])
 
-
+  #_{:clj-kondo/ignore [:inline-def]}
   (def cnt (atom 0))
-  (pg/fetch context ["select resource from test"] 100 "resource" (fn [x i] (swap! cnt inc)))
+  (pg/fetch context ["select resource from test"] 100 "resource" (fn [_ _] (swap! cnt inc)))
 
   (matcho/match @cnt 2000)
 
@@ -70,6 +72,7 @@
 
   (pg/migrate-down context)
 
+  #_{:clj-kondo/ignore [:unresolved-namespace]}
   (pg.migrations/read-migrations)
 
   (matcho/match
@@ -128,8 +131,10 @@
 
 (deftest test-copy-functions
 
+  #_{:clj-kondo/ignore [:inline-def]}
   (def cfg {:host "localhost" :port  5401 :database "context_pg" :user "admin" :password "admin"})
 
+  #_{:clj-kondo/ignore [:inline-def]}
   (def copy-context (system/start-system {:services ["pg"] :pg cfg}))
 
   (pg/execute! copy-context {:sql "drop table if exists _copy_test;"})
@@ -138,6 +143,7 @@
   (pg/execute! copy-context {:sql "select * from _copy_test"})
   (pg/execute! copy-context {:sql "truncate _copy_test"})
 
+  #_{:clj-kondo/ignore [:inline-def]}
   (def ci (pg/open-copy-manager copy-context "copy _copy_test (id,label,tags, resource) FROM STDIN csv DELIMITER E'\\x01' QUOTE E'\\x02'"))
 
   (pg/copy-write-column ci "1")
@@ -161,7 +167,9 @@
   )
 
 (deftest test-transactions
+  #_{:clj-kondo/ignore [:inline-def]}
   (def cfg {:host "localhost" :port 5401 :database "context_pg" :user "admin" :password "admin"})
+  #_{:clj-kondo/ignore [:inline-def]}
   (def context (system/start-system {:services ["pg"] :pg cfg}))
 
   (pg/execute! context {:sql "drop table if exists transaction_test"})
@@ -172,7 +180,7 @@
     (pg/execute! context {:sql ["insert into transaction_test (id, value) values (1, 'test1')"]})
     (pg/execute! context {:sql ["insert into transaction_test (id, value) values (2, 'test2')"]})
     (is (some? (:pg/transaction context))))
-  
+
   (is (nil? (:pg/transaction context)))
 
   (matcho/match

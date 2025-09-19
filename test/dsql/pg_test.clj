@@ -1295,5 +1295,11 @@
      }
     ["CREATE UNIQUE INDEX IF NOT EXISTS sdl_src_dst ON sdl_src_dst ( ( src ) , ( dst ) )"])
 
+  (format=
+   {:ql/type :pg/select
+    :select :*
+    :from :patient
+    :where [:pg/include-op ^:pg/fn [:extract_and_normalize_phones :resource] [:pg/array-constructor [^:pg/fn [:mpi.fn "+1783688978"]]]]}
+   ["SELECT * FROM patient WHERE extract_and_normalize_phones( resource ) @> array[ mpi.fn( ? ) ]" "+1783688978"])
 
   )

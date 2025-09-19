@@ -527,6 +527,16 @@
   (conj acc (to-array-litteral arr)))
 
 (defmethod ql/to-sql
+  :pg/array-constructor
+  [acc opts [_ arr]]
+  (-> acc
+      (conj "array[")
+      (ql/reduce-separated2 ","
+                            (fn [acc expr] (-> acc (ql/to-sql opts expr)))
+                            arr)
+      (conj "]")))
+
+(defmethod ql/to-sql
   :pg/kfn
   [acc opts [f arg & args]]
   (let [acc (-> (conj acc (str (name f) "("))

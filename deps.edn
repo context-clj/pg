@@ -1,5 +1,4 @@
 {:paths ["src"]
- :jvm-opts ["-Djdk.attach.allowAttachSelf"]
  :deps {org.clojure/clojure                         {:mvn/version "1.12.0"}
         cheshire/cheshire                           {:mvn/version "5.10.2"}
         clj-commons/clj-yaml                        {:mvn/version "0.7.106"}
@@ -11,8 +10,8 @@
         healthsamurai/matcho                        {:mvn/version "0.3.8"}
 
         context/system                              {:git/url "https://github.com/context-clj/system.git"
-                                                     :sha "e61f3e7febba3408f076ccae043384a3ac933cb0"}
-        }
+                                                     :sha "e61f3e7febba3408f076ccae043384a3ac933cb0"}}
+
 
  :aliases
  {:test

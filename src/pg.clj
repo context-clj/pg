@@ -10,9 +10,9 @@
    [pg.migrations])
   (:refer-clojure :exclude [load])
   (:import (java.sql Connection DriverManager)
-           (java.io BufferedInputStream BufferedReader FileInputStream FileNotFoundException InputStream InputStreamReader)
+           (java.io BufferedReader InputStream InputStreamReader)
            (java.util.zip GZIPInputStream)
-           (org.postgresql Driver PGConnection PGProperty)
+           (org.postgresql PGConnection)
            [java.sql PreparedStatement ResultSet]
            (org.postgresql.copy CopyManager CopyIn)
            (com.zaxxer.hikari HikariConfig HikariDataSource)
@@ -76,7 +76,7 @@
 (defn format-dsql [dql]
   (dsql.pg/format dql))
 
-(defn jdbc-execute! [conn {sql :sql dql :dsql :as opts}]
+(defn jdbc-execute! [conn {sql :sql dql :dsql}]
   (assert (or sql dql) ":sql or :dsql should be provided")
   (let [sql (cond (vector? sql) sql
                   (string? sql) [sql]
@@ -299,10 +299,10 @@
         (finally
           (.endCopy  ci))))))
 
-(defn copy-ndjson [ctx table cb]
+(defn copy-ndjson [ctx table cb & [col]]
   (with-open [^Connection c (connection ctx)]
     (let [^CopyManager cm (CopyManager. (.unwrap ^Connection c PGConnection))
-          copy-sql (str "COPY " table " (" (or "resource") " ) FROM STDIN csv quote e'\\x01' delimiter e'\\t'")
+          copy-sql (str "COPY " table " (" (or col "resource") " ) FROM STDIN csv quote e'\\x01' delimiter e'\\t'")
           ^CopyIn ci (.copyIn cm copy-sql)
           write (fn wr [res]
                   (let [^bytes bt (.getBytes (cheshire.core/generate-string res))]
@@ -331,14 +331,10 @@
     (doseq [m migrations]
       (when-not (get migrations-done (:file m))
         (system/info context ::migration-up (:file m))
-        (try
+        (pg/with-transaction context
           (doseq [sql (:up m)]
             (pg/execute! context {:sql sql}))
-          (pg/execute! context {:sql ["insert into public._migrations (id, file) values (?, ?)" (:id m) (:file m)]})
-          (catch Exception e
-            (doseq [sql (:down m)]
-              (try (pg/execute! context {:sql sql}) (catch Exception _e)))
-            (throw e)))))))
+          (pg/execute! context {:sql ["insert into public._migrations (id, file) values (?, ?)" (:id m) (:file m)]}))))))
 
 (defn migrate-down
   "Roll back migrations.
@@ -356,9 +352,10 @@
     (doseq [m rollback-migrations]
       (when-let [md (get migrations (:file m))]
         (system/info context ::migration-down (:file m))
-        (doseq [sql (:down md)]
-          (try (pg/execute! context {:sql sql}) (catch Exception _e)))
-        (pg/execute! context {:sql ["delete from _migrations where file = ?" (:file m)]})))))
+        (pg/with-transaction context
+          (doseq [sql (:down md)]
+            (pg/execute! context {:sql sql}))
+          (pg/execute! context {:sql ["delete from _migrations where file = ?" (:file m)]}))))))
 
 #_(defmacro load-data [ctx writers & rest]
     (println :? writers)

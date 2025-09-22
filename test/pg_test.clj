@@ -40,8 +40,8 @@
   (do
     (pg/execute! context {:sql "drop table if exists _migrations"})
     (pg/execute! context {:sql "drop table if exists patient"})
-    (pg/execute! context {:sql "drop table if exists \"users\""})
-    (pg/execute! context {:sql "drop table if exists \"user_sessions\""}))
+    (pg/execute! context {:sql "drop table if exists users"})
+    (pg/execute! context {:sql "drop table if exists user_sessions"}))
 
   (pg/migrate-prepare context)
 
@@ -118,7 +118,13 @@
      :gender "male"})
 
 
-  (system/stop-system context)
+  (pg/migrate-down context :all)
+  (pg/execute! context {:sql "create table patient (id int)"})
+  (pg/execute! context {:sql "insert into patient values(100500)"})
+  (is (thrown? Exception (pg/migrate-up context)))
+  (matcho/match (pg/execute! context {:sql "select * from patient"}) [{:id 100500}])
+
+  (system/stop-system context))
 
   ;; context
 
@@ -127,7 +133,7 @@
   ;; (execute! context ["truncate test"])
   ;; (copy-ndjson context "test" (fn [w] (doseq [i (range 100)] (w {:i i}))))
 
-  )
+
 
 (deftest test-copy-functions
 

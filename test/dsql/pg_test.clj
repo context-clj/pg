@@ -22,7 +22,7 @@
       :into          :patient
       :as            :p
       :value         {:id [:pg/param "id"] :gender [:pg/param "male"]}
-      :returning     [:as [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn[:row_to_json :p.*] :jsonb]] "row"]}
+      :returning     [:as [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn [:row_to_json :p.*] :jsonb]] "row"]}
 
      ["INSERT INTO patient AS p ( \"id\", \"gender\" ) VALUES ( ? , ? ) RETURNING jsonb_strip_nulls( ( row_to_json( p.* ) )::jsonb ) AS row"
       "id" "male"]))
@@ -33,7 +33,7 @@
       :into          :schema.patient
       :as            :p
       :value         {:id [:pg/param "id"] :gender [:pg/param "male"]}
-      :returning     [:as [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn[:row_to_json :p.*] :jsonb]] "row"]}
+      :returning     [:as [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn [:row_to_json :p.*] :jsonb]] "row"]}
 
      ["INSERT INTO schema.patient AS p ( \"id\", \"gender\" ) VALUES ( ? , ? ) RETURNING jsonb_strip_nulls( ( row_to_json( p.* ) )::jsonb ) AS row"
       "id" "male"]))
@@ -44,7 +44,7 @@
       :into          :patient
       :as            :p
       :value         {:id [:pg/param "id"] :gender [:pg/param "male"]}
-      :returning     [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn[:row_to_json :p.*] :jsonb]]}
+      :returning     [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn [:row_to_json :p.*] :jsonb]]}
      ["INSERT INTO patient AS p ( \"id\", \"gender\" ) VALUES ( ? , ? ) RETURNING jsonb_strip_nulls( ( row_to_json( p.* ) )::jsonb )"
       "id" "male"]))
 
@@ -54,7 +54,7 @@
       :into          :patient
       :as            :p
       :value         {:id "id" :gender "male"}
-      :returning     [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn[:row_to_json :p.*] :jsonb]]}
+      :returning     [:pg/jsonb_strip_nulls [:pg/cast ^:pg/fn [:row_to_json :p.*] :jsonb]]}
      ["INSERT INTO patient AS p ( \"id\", \"gender\" ) VALUES ( ? , ? ) RETURNING jsonb_strip_nulls( ( row_to_json( p.* ) )::jsonb )"
       "id"
       "male"]))
@@ -69,7 +69,7 @@
        :birthDate       "1991-11-08"
        :name            [{:given "Ibragim"}]
        :deceasedBoolean false
-       :extension       {:foo "bar"}} )
+       :extension       {:foo "bar"}})
 
     (format=
      {:ql/type       :pg/insert
@@ -84,27 +84,26 @@
       "1991-11-08"
       "[{\"given\":\"Ibragim\"}]"
       "false"
-      "{\"foo\":\"bar\"}"])
-    )
+      "{\"foo\":\"bar\"}"]))
 
   (testing "select"
     (format=
      {:ql/type :pg/projection
       :a "string"
       :b 1
-      :fn ^:pg/kfn[:substring :col :from 1 :for 3]}
+      :fn ^:pg/kfn [:substring :col :from 1 :for 3]}
      ["? as a , 1 as b , substring( col from 1 for 3 ) as fn" "string"])
 
 
     (format=
      {:ql/type :pg/projection
-      :sub-q ^:pg/sub-select{:select :* :from :tbl :limit 1}}
+      :sub-q ^:pg/sub-select {:select :* :from :tbl :limit 1}}
      ["( SELECT * FROM tbl LIMIT 1 ) as \"sub-q\""]))
 
   (format=
    {:select :*
     :from :user
-    :where ^:pg/op[:= :user.id [:pg/param "u-1"]]
+    :where ^:pg/op [:= :user.id [:pg/param "u-1"]]
     :limit 100}
    ["SELECT * FROM user WHERE user.id = ? LIMIT 100" "u-1"])
 
@@ -119,47 +118,47 @@
   (format=
    {:select :*
     :from :user
-    :where ^:pg/op[:= :user.id "u'-1"]
+    :where ^:pg/op [:= :user.id "u'-1"]
     :limit 100}
    ["SELECT * FROM user WHERE user.id = ? LIMIT 100" "u'-1"])
 
   (format=
    {:select :*
     :from :user
-    :where ^:pg/op[:= :user.id "u-1"]
+    :where ^:pg/op [:= :user.id "u-1"]
     :limit 100}
    ["SELECT * FROM user WHERE user.id = ? LIMIT 100" "u-1"])
 
   (testing "select columns"
-   (format=
-    {:select [:pg/columns :a :b :c]
-     :from :user}
-    ["SELECT a , b , c FROM user"])
+    (format=
+     {:select [:pg/columns :a :b :c]
+      :from :user}
+     ["SELECT a , b , c FROM user"])
 
-   (format=
-    {:select [:pg/columns :a [:b "deleted"] :c] :from :user}
-    ["SELECT a , ? b , c FROM user" "deleted"])
+    (format=
+     {:select [:pg/columns :a [:b "deleted"] :c] :from :user}
+     ["SELECT a , ? b , c FROM user" "deleted"])
 
-   (format=
-    {:select [:pg/columns :a [:b "deleted"] [:c 9]] :from :user}
-    ["SELECT a , ? b , ? c FROM user" "deleted" 9])
+    (format=
+     {:select [:pg/columns :a [:b "deleted"] [:c 9]] :from :user}
+     ["SELECT a , ? b , ? c FROM user" "deleted" 9])
 
-   (format=
-    {:select [:pg/columns :a [:b :CURRENT_TIMESTAMP] [:c 9]] :from :user}
-    ["SELECT a , CURRENT_TIMESTAMP b , ? c FROM user" 9]))
+    (format=
+     {:select [:pg/columns :a [:b :CURRENT_TIMESTAMP] [:c 9]] :from :user}
+     ["SELECT a , CURRENT_TIMESTAMP b , ? c FROM user" 9]))
 
   (format=
    (merge
     {:ql/type :pg/and
-     :by-id ^:pg/op[:= :id [:pg/param "u-1"]]}
-    {:by-status ^:pg/op[:= :status "active"]})
+     :by-id ^:pg/op [:= :id [:pg/param "u-1"]]}
+    {:by-status ^:pg/op [:= :status "active"]})
    ["/*by-id*/ id = ? AND /*by-status*/ status = ?" "u-1" "active"])
 
   (format=
    (merge
     {:ql/type :pg/or
-     :by-id ^:pg/op[:= :id [:pg/param "u-1"]]}
-    {:by-status ^:pg/op[:= :status "active"]})
+     :by-id ^:pg/op [:= :id [:pg/param "u-1"]]}
+    {:by-status ^:pg/op [:= :status "active"]})
    ["( /*by-id*/ id = ? OR /*by-status*/ status = ? )" "u-1" "active"])
 
 
@@ -167,15 +166,15 @@
    {:ql/type :pg/projection
     :id :id
     :raw [:pg/sql "current_time()"]
-    :fn ^:pg/fn[:current_time "1" [:pg/param "x"]]}
-   ["current_time( ? , ? ) as fn , id as id , current_time() as raw" "1" "x"])
+    :fn ^:pg/fn [:current_time "1" [:pg/param "x"]]}
+   ["id as id , current_time() as raw , current_time( ? , ? ) as fn" "1" "x"])
 
   (format=
-   {:select {:resource ^:pg/op[:|| :resource ^:pg/obj{:id :id :resourceType "Patient"}]}
+   {:select {:resource ^:pg/op [:|| :resource ^:pg/obj {:id :id :resourceType "Patient"}]}
     :from {:pt :patient}
     :where {:match
-            ^:pg/op[:&& ^:pg/fn[:knife_extract_text :resource ^:pg/jsonb[["match"]]]
-                    [:pg/array-param :text ["a-1" "b-2"]]]}
+            ^:pg/op [:&& ^:pg/fn [:knife_extract_text :resource ^:pg/jsonb [["match"]]]
+                     [:pg/array-param :text ["a-1" "b-2"]]]}
     :limit 10}
    ["SELECT resource || jsonb_build_object( 'id' , id , 'resourceType' , ?::text ) as resource FROM patient pt WHERE /*match*/ knife_extract_text( resource , '[[\"match\"]]' ) && ?::text[] LIMIT 10"
     "Patient"
@@ -222,19 +221,19 @@
     :expr [[:resource-> :a] [:resource-> :b]]
     :tablespace :mytbs
     :with {:fillfactor 70}
-    :where ^:pg/op[:= :user.status "active"]}
+    :where ^:pg/op [:= :user.status "active"]}
    ["CREATE INDEX IF NOT EXISTS users_id_idx ON users USING GIN ( ( resource->'a' ) , ( resource->'b' ) ) WHERE user.status = ?" "active"])
 
   (format=
-    {:ql/type   :pg/drop-index
-     :index     :my_table_index
-     :if-exists true}
-    ["DROP INDEX IF EXISTS my_table_index"])
+   {:ql/type   :pg/drop-index
+    :index     :my_table_index
+    :if-exists true}
+   ["DROP INDEX IF EXISTS my_table_index"])
 
   (format=
-    {:ql/type :pg/drop-index
-     :index   :my_table_index}
-    ["DROP INDEX my_table_index"])
+   {:ql/type :pg/drop-index
+    :index   :my_table_index}
+   ["DROP INDEX my_table_index"])
 
   (format= nil ["NULL"])
 
@@ -265,10 +264,10 @@
   (format= [:= 1 1]
            ["1 = 1"])
 
-  (format= ^:pg/op[:|| :col [:pg/param "string"]]
+  (format= ^:pg/op [:|| :col [:pg/param "string"]]
            ["col || ?" "string"])
 
-  (format= ^:pg/op[:|| {:ql/type :pg/sub-select :select :* :from :user} [:pg/param "string"]]
+  (format= ^:pg/op [:|| {:ql/type :pg/sub-select :select :* :from :user} [:pg/param "string"]]
            ["( SELECT * FROM user ) || ?" "string"])
 
   (format= [:jsonb/->> :resource :name]
@@ -289,13 +288,13 @@
 
   (format= {:ql/type :pg/update
             :update :healthplan
-            :set {:resource ^:pg/op[:|| :resource ^:jsonb/obj{:identifier ^:jsonb/array[^:jsonb/obj{:value [:jsonb/#>> :resource [:clearing_house :advance_md :payer-id]]
-                                                                                                    :system "amd"}
-                                                                                        ^:jsonb/obj{:value [:jsonb/#>> :resource [:clearing_house :change_healthcare :payer-id]]
-                                                                                                    :system "change_healthcare"}
-                                                                                        ^:jsonb/obj{:value [:jsonb/#>> :resource [:clearing_house :omega :payer-id]]
-                                                                                                    :system "omega"}]}]}
-            :where {:clearing_house ^:pg/op[:is [:jsonb/-> :resource :clearing_house] [:pg/sql "NOT NULL"]]}}
+            :set {:resource ^:pg/op [:|| :resource ^:jsonb/obj {:identifier ^:jsonb/array [^:jsonb/obj {:value [:jsonb/#>> :resource [:clearing_house :advance_md :payer-id]]
+                                                                                                        :system "amd"}
+                                                                                           ^:jsonb/obj {:value [:jsonb/#>> :resource [:clearing_house :change_healthcare :payer-id]]
+                                                                                                        :system "change_healthcare"}
+                                                                                           ^:jsonb/obj {:value [:jsonb/#>> :resource [:clearing_house :omega :payer-id]]
+                                                                                                        :system "omega"}]}]}
+            :where {:clearing_house ^:pg/op [:is [:jsonb/-> :resource :clearing_house] [:pg/sql "NOT NULL"]]}}
            ["UPDATE healthplan SET resource = resource || jsonb_build_object( 'identifier' , jsonb_build_array( jsonb_build_object( 'value' , resource #>> '{\"clearing_house\",\"advance_md\",\"payer-id\"}' , 'system' , ?::text ) , jsonb_build_object( 'value' , resource #>> '{\"clearing_house\",\"change_healthcare\",\"payer-id\"}' , 'system' , ?::text ) , jsonb_build_object( 'value' , resource #>> '{\"clearing_house\",omega,\"payer-id\"}' , 'system' , ?::text ) ) ) WHERE /*clearing_house*/ resource -> 'clearing_house' is NOT NULL"
             "amd"
             "change_healthcare"
@@ -303,7 +302,7 @@
 
   (format= {:ql/type :pg/delete
             :from :healthplan
-            :where ^:pg/op[:= :id "111"]
+            :where ^:pg/op [:= :id "111"]
             :returning :id}
            ["DELETE FROM healthplan WHERE id = ? RETURNING id" "111"])
 
@@ -312,9 +311,9 @@
     :select {:count [:pg/count*]}
     :from :dft
     :left-join {:d {:table :document
-                    :on {:by-id ^:pg/op[:= :dft.id [:jsonb/->> :d.resource "caseNumber"]]
-                         :front ^:pg/op[:= [:jsonb/->> :d.resource :name] "front"]}}}
-    :where {:no-scan ^:pg/op[:is :d.id nil]}}
+                    :on {:by-id ^:pg/op [:= :dft.id [:jsonb/->> :d.resource "caseNumber"]]
+                         :front ^:pg/op [:= [:jsonb/->> :d.resource :name] "front"]}}}
+    :where {:no-scan ^:pg/op [:is :d.id nil]}}
 
    ["SELECT count(*) as count FROM dft LEFT JOIN document d ON /*by-id*/ dft.id = d.resource ->> 'caseNumber' AND /*front*/ d.resource ->> 'name' = ? WHERE /*no-scan*/ d.id is NULL"
     "front"])
@@ -326,9 +325,9 @@
     :select {:count [:pg/count*]}
     :from :dft
     :left-join {:d {:table :document
-                    :on {:by-id ^:pg/op[:= :dft.id [:jsonb/->> :d.resource "caseNumber"]]
-                         :front ^:pg/op[:= [:jsonb/->> :d.resource :name] "front"]}}}
-    :where {:no-scan ^:pg/op[:is :d.id nil]}}
+                    :on {:by-id ^:pg/op [:= :dft.id [:jsonb/->> :d.resource "caseNumber"]]
+                         :front ^:pg/op [:= [:jsonb/->> :d.resource :name] "front"]}}}
+    :where {:no-scan ^:pg/op [:is :d.id nil]}}
 
    ["EXPLAIN ANALYZE SELECT count(*) as count FROM dft LEFT JOIN document d ON /*by-id*/ dft.id = d.resource ->> 'caseNumber' AND /*front*/ d.resource ->> 'name' = ? WHERE /*no-scan*/ d.id is NULL"
     "front"])
@@ -337,15 +336,15 @@
            ["( ? , ? , ? )" 1 2 3])
 
   (is (= {:ql/type :pg/params-list :code :params-required}
-       (try (sut/format [:pg/params-list nil])
-            (catch clojure.lang.ExceptionInfo e (ex-data e)))))
-
-  (is (= {:ql/type :pg/params-list :code :params-required}
-        (try (sut/format [:pg/params-list []])
+         (try (sut/format [:pg/params-list nil])
               (catch clojure.lang.ExceptionInfo e (ex-data e)))))
 
   (is (= {:ql/type :pg/params-list :code :params-required}
-        (try (sut/format [:pg/params-list '()])
+         (try (sut/format [:pg/params-list []])
+              (catch clojure.lang.ExceptionInfo e (ex-data e)))))
+
+  (is (= {:ql/type :pg/params-list :code :params-required}
+         (try (sut/format [:pg/params-list '()])
               (catch clojure.lang.ExceptionInfo e (ex-data e)))))
 
   (format= [:in :column [:pg/params-list [1 2 3]]]
@@ -355,7 +354,7 @@
            ["column NOT IN ( ? , ? , ? )" 1 2 3])
 
   (format= [:not [:pg/include-op [:resource->> :tags]
-                  (into ^:jsonb/array[] ["a" "b" "c"])]]
+                  (into ^:jsonb/array [] ["a" "b" "c"])]]
 
            ["NOT resource->>'tags' @> jsonb_build_array( ?::text , ?::text , ?::text )"
             "a"
@@ -402,16 +401,16 @@
    ["1 = 1"])
 
   (format=
-   [:not-with-parens ^:pg/op[:and
-                      ^:pg/op[:>= :id [:pg/param "start"]]
-                             ^:pg/op[:<= :id [:pg/param "end"]]]]
+   [:not-with-parens ^:pg/op [:and
+                              ^:pg/op [:>= :id [:pg/param "start"]]
+                              ^:pg/op [:<= :id [:pg/param "end"]]]]
    ["NOT ( id >= ? and id <= ? )" "start" "end"])
 
   (format=
    {:ql/type :pg/update
     :update :AmdExport
-    :set {:resource ^:pg/op[:|| :resource ^:jsonb/obj{:status "pending"}]}
-    :where ^:pg/op[:is [:resource-> :status] nil]}
+    :set {:resource ^:pg/op [:|| :resource ^:jsonb/obj {:status "pending"}]}
+    :where ^:pg/op [:is [:resource-> :status] nil]}
    ["UPDATE AmdExport SET resource = resource || jsonb_build_object( 'status' , ?::text ) WHERE resource->'status' is NULL"
     "pending"])
 
@@ -446,9 +445,9 @@
    {:ql/type :pg/select
     :select [:count*]
     :from :oru
-    :where ^:pg/op[:and
-                   ^:pg/op[:> [:pg/cast [:jsonb/#>> :resource [:message :datetime]] ::timestamp] [:pg/sql "now() - interval '1 week'"]]
-                   [:ilike :id "%Z%.CV"]]}
+    :where ^:pg/op [:and
+                    ^:pg/op [:> [:pg/cast [:jsonb/#>> :resource [:message :datetime]] ::timestamp] [:pg/sql "now() - interval '1 week'"]]
+                    [:ilike :id "%Z%.CV"]]}
    ["SELECT count(*) FROM oru WHERE ( resource #>> '{message,datetime}' )::timestamp > now() - interval '1 week' and id ILIKE ?"
     "%Z%.CV"])
 
@@ -457,11 +456,11 @@
    ["jsonb_build_object( 'id' , id )"])
 
   (format=
-   [:= 1 ^:pg/obj{:id :id}]
+   [:= 1 ^:pg/obj {:id :id}]
    ["1 = jsonb_build_object( 'id' , id )"])
 
   (format=
-   [:= 1 ^:pg/obj^:eval-key{:id :id}]
+   [:= 1 ^:pg/obj ^:eval-key {:id :id}]
    ["1 = jsonb_build_object( id , id )"])
 
   (format=
@@ -477,14 +476,14 @@
                            ^:pg/op [:= :organization.id [:jsonb/#>> :p.resource [:patient_group :order_group 0 :order :contact :phone 0 :phone]]]}}}
     :order-by :id
     :limit 5}
-   ["SELECT p.resource || jsonb_build_object( 'id' , p.id ) as pr , resource || jsonb_build_object( 'id' , id ) as resource FROM oru LEFT JOIN practitioner p ON /*by-id*/ practitioner.id = p.resource #>> '{\"patient_group\",\"order_group\",0,order,requester,provider,0,identifier,value}' LEFT JOIN organization org ON /*by-id*/ organization.id = p.resource #>> '{\"patient_group\",\"order_group\",0,order,contact,phone,0,phone}' WHERE id ILIKE ? ORDER BY id LIMIT 5"
+   ["SELECT resource || jsonb_build_object( 'id' , id ) as resource , p.resource || jsonb_build_object( 'id' , p.id ) as pr FROM oru LEFT JOIN practitioner p ON /*by-id*/ practitioner.id = p.resource #>> '{\"patient_group\",\"order_group\",0,order,requester,provider,0,identifier,value}' LEFT JOIN organization org ON /*by-id*/ organization.id = p.resource #>> '{\"patient_group\",\"order_group\",0,order,contact,phone,0,phone}' WHERE id ILIKE ? ORDER BY id LIMIT 5"
     "%Z38886%"])
 
   (format=
    {:ql/type :pg/update
     :update :ORU
-    :set {:resource ^:pg/op[:|| :resource ^:jsonb/obj{:status "some-val"}]}
-    :where ^:pg/op[:= :id "some-id"]}
+    :set {:resource ^:pg/op [:|| :resource ^:jsonb/obj {:status "some-val"}]}
+    :where ^:pg/op [:= :id "some-id"]}
    ["UPDATE ORU SET resource = resource || jsonb_build_object( 'status' , ?::text ) WHERE id = ?"
     "some-val"
     "some-id"])
@@ -496,11 +495,11 @@
           ^:pg/op [:||
                    :resource
                    ^:jsonb/obj {:status "sent"
-                                :history ^:pg/op[:||
-                                                 [:jsonb/#>> :resource [:history]]
-                                                 ^:jsonb/array[^:jsonb/obj{:status "sent"
-                                                                           :user   ^:jsonb/obj{:id "id"}
-                                                                           :date   ^:pg/fn[:now]}]]}]}
+                                :history ^:pg/op [:||
+                                                  [:jsonb/#>> :resource [:history]]
+                                                  ^:jsonb/array [^:jsonb/obj {:status "sent"
+                                                                              :user   ^:jsonb/obj {:id "id"}
+                                                                              :date   ^:pg/fn [:now]}]]}]}
     :returning :id}
    ["UPDATE xinvoice SET resource = resource || jsonb_build_object( 'status' , ?::text , 'history' , resource #>> '{history}' || jsonb_build_array( jsonb_build_object( 'status' , ?::text , 'user' , jsonb_build_object( 'id' , ?::text ) , 'date' , now( ) ) ) ) RETURNING id"
     "sent"
@@ -519,17 +518,16 @@
    {:ql/type :pg/select
     :select :id
     :from :oru
-    :where ^:pg/op[:or
-                   ^:pg/op[:is [:resource->> :status] nil]
-                   ^:pg/op[:!= [:resource->> :status] "processed"]
-                   ]}
+    :where ^:pg/op [:or
+                    ^:pg/op [:is [:resource->> :status] nil]
+                    ^:pg/op [:!= [:resource->> :status] "processed"]]}
    ["SELECT id FROM oru WHERE resource->>'status' is NULL or resource->>'status' != ?"
     "processed"])
 
   (format=
    {:ql/type :pg/update
     :update  :BillingCase
-    :set     {:resource ^:pg/op[:|| :resource ^:jsonb/obj{:report_no ^:pg/op[:|| :id ".CV"]}]}
+    :set     {:resource ^:pg/op [:|| :resource ^:jsonb/obj {:report_no ^:pg/op [:|| :id ".CV"]}]}
     :where   [:ilike :id [:pg/param "%Z%"]]}
    ["UPDATE BillingCase SET resource = resource || jsonb_build_object( 'report_no' , id || ? ) WHERE id ILIKE ?"
     ".CV"
@@ -537,13 +535,13 @@
 
   (format=
    {:ql/type :pg/select
-    :select {:resource ^:pg/op[:|| :d.resource
-                               ^:jsonb/obj{:id :d.id
-                                           :partOf ^:pg/op[:|| :_d.resource
-                                                           ^:jsonb/obj{:id :_d.id}]}]}
+    :select {:resource ^:pg/op [:|| :d.resource
+                                ^:jsonb/obj {:id :d.id
+                                             :partOf ^:pg/op [:|| :_d.resource
+                                                              ^:jsonb/obj {:id :_d.id}]}]}
     :from {:d :department}
     :left-join {:_d {:table :department
-                     :on ^:pg/op[:= :_d.id [:jsonb/#>> :d.resource [:partOf :id]]]}}
+                     :on ^:pg/op [:= :_d.id [:jsonb/#>> :d.resource [:partOf :id]]]}}
     :where [:ilike [:pg/cast :d.resource ::text] [:pg/param "%%"]]
     :limit [:pg/param 10]}
 
@@ -552,9 +550,9 @@
   (let [query-fn (fn [id q] {:ql/type :pg/select
                              :select {:resource ^:pg/op [:|| :resource ^:jsonb/obj {:id :id}]}
                              :from :department
-                             :where ^:pg/op[:and
-                                            (if id ^:pg/op[:<> :id [:pg/param id]] [:pg/sql true])
-                                            (if q [:ilike [:jsonb/->> :resource :name] [:pg/param (str "%" q "%")]] [:pg/sql true])]})]
+                             :where ^:pg/op [:and
+                                             (if id ^:pg/op [:<> :id [:pg/param id]] [:pg/sql true])
+                                             (if q [:ilike [:jsonb/->> :resource :name] [:pg/param (str "%" q "%")]] [:pg/sql true])]})]
     (format=
      (query-fn nil nil)
      ["SELECT resource || jsonb_build_object( 'id' , id ) as resource FROM department WHERE true and true"])
@@ -567,8 +565,8 @@
 
   (format=
    {:ql/type :pg/select
-    :select {:resource ^:pg/op[:|| :d.resource ^:jsonb/obj{:id :d.id
-                                                           :partOf ^:pg/op[:|| :_d.resource ^:jsonb/obj{:id :_d.id}]}]}
+    :select {:resource ^:pg/op [:|| :d.resource ^:jsonb/obj {:id :d.id
+                                                             :partOf ^:pg/op [:|| :_d.resource ^:jsonb/obj {:id :_d.id}]}]}
     :from {:d :department}
     :left-join {:_d {:table :department
                      :on ^:pg/op [:= :_d.id [:jsonb/#>> :d.resource [:partOf :id]]]}}
@@ -577,13 +575,12 @@
    ["SELECT d.resource || jsonb_build_object( 'id' , d.id , 'partOf' , _d.resource || jsonb_build_object( 'id' , _d.id ) ) as resource FROM department d LEFT JOIN department _d ON _d.id = d.resource #>> '{partOf,id}' WHERE d.id = ?", "10"])
 
   (format=
-   ^:pg/op[:|| :resource ^:pg/jsonb{:a 1 :b 2}]
-   ["resource || '{\"a\":1,\"b\":2}'"]
-   )
+   ^:pg/op [:|| :resource ^:pg/jsonb {:a 1 :b 2}]
+   ["resource || '{\"a\":1,\"b\":2}'"])
 
   (format=
    {:ql/type :pg/select
-    :select {:resource ^:pg/op[:|| :resource ^:jsonb/obj{:id :id}]}
+    :select {:resource ^:pg/op [:|| :resource ^:jsonb/obj {:id :id}]}
     :from :xdiagnosis
     :where [:and
             [:ilike [:pg/cast :resource ::text] [:pg/param "%10%"]]
@@ -598,13 +595,13 @@
     :set {:resource
           ^:pg/op [:||
                    :resource
-                   ^:pg/obj{:caseNumber [:pg/param "new-case-id"]}]}
+                   ^:pg/obj {:caseNumber [:pg/param "new-case-id"]}]}
     :where ^:pg/op [:= :id [:pg/param "doc-id"]]}
    ["UPDATE Document SET resource = resource || jsonb_build_object( 'caseNumber' , ? ) WHERE id = ?"
     "new-case-id"
     "doc-id"])
   {:ql/type :pg/projection
-   :sub-q ^:pg/sub-select{:select :* :from :tbl :limit 1}}
+   :sub-q ^:pg/sub-select {:select :* :from :tbl :limit 1}}
 
   (format=
    {:ql/type :pg/select
@@ -613,17 +610,16 @@
     :where [:in
             [:resource#>> [:location :id]]
             {:ql/type :pg/projection
-             :sub-q ^:pg/sub-select{:select :id
-                                    :from :Department
-                                    :where ^:pg/op [:= [:resource#>> [:part_of :id]] "dep-1"]}}
-            ]}
+             :sub-q ^:pg/sub-select {:select :id
+                                     :from :Department
+                                     :where ^:pg/op [:= [:resource#>> [:part_of :id]] "dep-1"]}}]}
    ["SELECT * FROM BillingCase WHERE resource#>>'{location,id}' IN ( SELECT id FROM Department WHERE resource#>>'{\"part_of\",id}' = ? ) as \"sub-q\""
     "dep-1"])
 
   (format=
    {:ql/type :pg/select
-    :select {:resource ^:pg/op[:|| :d.resource ^:jsonb/obj{:id :d.id
-                                                           :partOf ^:pg/op[:|| :_d.resource ^:jsonb/obj{:id :_d.id}]}]}
+    :select {:resource ^:pg/op [:|| :d.resource ^:jsonb/obj {:id :d.id
+                                                             :partOf ^:pg/op [:|| :_d.resource ^:jsonb/obj {:id :_d.id}]}]}
     :from {:d :department}
     :left-join {:_d {:table :department
                      :on ^:pg/op [:= :_d.id [:jsonb/#>> :d.resource [:partOf :id]]]}}
@@ -633,7 +629,7 @@
 
   (format=
    {:ql/type :pg/select
-    :select     {:resource ^:pg/op[:|| :e.resource ^:pg/jsonb{:id :e.id}]}
+    :select     {:resource ^:pg/op [:|| :e.resource ^:pg/jsonb {:id :e.id}]}
     :from       {:e :MawdEorder}
     :left-join  {:_e {:table :BillingCase
                       :on
@@ -646,116 +642,113 @@
    ["SELECT e.resource || '{\"id\":\"e.id\"}' as resource FROM MawdEorder e LEFT JOIN BillingCase _e ON _e.resource ->> 'order_id' = e.id WHERE e.resource ->> 'processed' <> ?"
     "full"])
   (format=
-    [:cond
-     [:= [:resource->> :date] "123"] [:jsonb/->> :e.resource :processed]
-     [:= [:resource->> :date] "456"] [:jsonb/->> :e.resource :order_id]
-     [:jsonb/#>> :d.resource [:partOf :id]]]
-    ["( case when ( resource->>'date' = ? ) then ( e.resource ->> 'processed' ) when ( resource->>'date' = ? ) then ( e.resource ->> 'order_id' ) else ( d.resource #>> '{partOf,id}' ) end )"
-     "123"
-     "456"])
+   [:cond
+    [:= [:resource->> :date] "123"] [:jsonb/->> :e.resource :processed]
+    [:= [:resource->> :date] "456"] [:jsonb/->> :e.resource :order_id]
+    [:jsonb/#>> :d.resource [:partOf :id]]]
+   ["( case when ( resource->>'date' = ? ) then ( e.resource ->> 'processed' ) when ( resource->>'date' = ? ) then ( e.resource ->> 'order_id' ) else ( d.resource #>> '{partOf,id}' ) end )"
+    "123"
+    "456"])
 
   (format=
-    [:case [:resource->> :date]
-     "123" [:jsonb/->> :e.resource :processed]
-     "456" [:jsonb/->> :e.resource :order_id]
-     [:jsonb/#>> :d.resource [:partOf :id]]]
-    ["( case ( resource->>'date' ) when ( ? ) then ( e.resource ->> 'processed' ) when ( ? ) then ( e.resource ->> 'order_id' ) else ( d.resource #>> '{partOf,id}' ) end )"
-     "123"
-     "456"])
+   [:case [:resource->> :date]
+    "123" [:jsonb/->> :e.resource :processed]
+    "456" [:jsonb/->> :e.resource :order_id]
+    [:jsonb/#>> :d.resource [:partOf :id]]]
+   ["( case ( resource->>'date' ) when ( ? ) then ( e.resource ->> 'processed' ) when ( ? ) then ( e.resource ->> 'order_id' ) else ( d.resource #>> '{partOf,id}' ) end )"
+    "123"
+    "456"])
 
 
-(testing "CREATE TABLE"
+  (testing "CREATE TABLE"
+    (format=
+     {:ql/type :pg/create-table
+      :table-name "\"MyTable\""
+      :columns {:a {:type "integer"}}}
+     ["CREATE TABLE \"MyTable\" ( \"a\" integer )"])
+
+
+    (format=
+     {:ql/type       :pg/create-table
+      :table-name    "patient_000"
+      :if-not-exists true
+      :constraint    {:primary-key [:id :partition]}
+      :partition-of  "patient"
+      :partition-by  {:method :range
+                      :expr   :partition}
+      :for           {:from 0 :to   1001}}
+     ["CREATE TABLE IF NOT EXISTS patient_000 partition of patient ( PRIMARY KEY (\"id\", \"partition\") ) for values from (0) to (1001) partition by range ( partition )"])
+
+
+    (format=
+     {:ql/type :pg/create-table
+      :table-name "mytable"
+      :constraint {:primary-key [:id :partition]}}
+     ["CREATE TABLE mytable ( PRIMARY KEY (\"id\", \"partition\") )"])
+
+    (format=
+     {:ql/type :pg/create-table
+      :table-name "mytable"
+      :columns {:id        {:type "uuid"}
+                :partition {:type "int"}
+                :resource  {:type "jsonb"}}
+      :constraint {:primary-key [:id :partition]}}
+
+     ["CREATE TABLE mytable ( \"id\" uuid , \"partition\" int , \"resource\" jsonb , PRIMARY KEY (\"id\", \"partition\") )"]))
+
   (format=
    {:ql/type :pg/create-table
-    :table-name "\"MyTable\""
-    :columns {:a {:type "integer" }}}
-   ["CREATE TABLE \"MyTable\" ( \"a\" integer )"])
-
-
-  (format=
-   {:ql/type       :pg/create-table
-    :table-name    "patient_000"
+    :table-name "mytable"
     :if-not-exists true
-    :constraint    {:primary-key [:id :partition]}
-    :partition-of  "patient"
-    :partition-by  {:method :range
-                    :expr   :partition}
-    :for           {:from 0 :to   1001}}
-  ["CREATE TABLE IF NOT EXISTS patient_000 partition of patient ( PRIMARY KEY (\"id\", \"partition\") ) for values from (0) to (1001) partition by range ( partition )"]
-   )
-
+    :unlogged true
+    :columns {:id          {:type "text" :primary-key true}
+              :filelds     {:type "jsonb"}
+              :match_tags  {:type "text[]"}
+              :dedup_tags  {:type "text[]"}}}
+   ["CREATE UNLOGGED TABLE IF NOT EXISTS mytable ( \"id\" text PRIMARY KEY , \"filelds\" jsonb , \"match_tags\" text[] , \"dedup_tags\" text[] )"])
 
   (format=
    {:ql/type :pg/create-table
     :table-name "mytable"
-    :constraint {:primary-key [:id :partition]}}
-   ["CREATE TABLE mytable ( PRIMARY KEY (\"id\", \"partition\") )"])
+    :columns {:id        [:uuid "not null"]
+              :version   [:uuid "not null"]
+              :cts       [:timestamptz "not null" :DEFAULT :current_timestamp]
+              :ts        [:timestamptz "not null" :DEFAULT :current_timestamp]
+              :status    [:resource_status "not null"]
+              :partition [:int "not null"]
+              :resource  [:jsonb "not null"]}}
+   ["CREATE TABLE mytable ( \"id\" uuid not null , \"version\" uuid not null , \"cts\" timestamptz not null DEFAULT current_timestamp , \"ts\" timestamptz not null DEFAULT current_timestamp , \"status\" resource_status not null , \"partition\" int not null , \"resource\" jsonb not null )"])
 
-  (format=
-   {:ql/type :pg/create-table
-    :table-name "mytable"
-    :columns {:id        {:type "uuid"}
-              :partition {:type "int"}
-              :resource  {:type "jsonb"}}
-    :constraint {:primary-key [:id :partition]}}
+  (testing "default value"
 
-  ["CREATE TABLE mytable ( \"id\" uuid , \"partition\" int , \"resource\" jsonb , PRIMARY KEY (\"id\", \"partition\") )"]))
+    (format=
+     {:ql/type :pg/create-table
+      :table-name :mytable
+      :columns {:a {:type "integer" :not-null true :default 8}}}
+     ["CREATE TABLE mytable ( \"a\" integer NOT NULL DEFAULT 8 )"])
 
- (format=
-  {:ql/type :pg/create-table
-   :table-name "mytable"
-   :if-not-exists true
-   :unlogged true
-   :columns {:id          {:type "text" :primary-key true}
-             :filelds     {:type "jsonb"}
-             :match_tags  {:type "text[]"}
-             :dedup_tags  {:type "text[]"}}
-   }
-  ["CREATE UNLOGGED TABLE IF NOT EXISTS mytable ( \"id\" text PRIMARY KEY , \"filelds\" jsonb , \"match_tags\" text[] , \"dedup_tags\" text[] )"])
+    (format=
+     {:ql/type :pg/create-table
+      :table-name "mytable"
+      :columns {:a {:type "integer" :not-null true :default 8}}}
+     ["CREATE TABLE mytable ( \"a\" integer NOT NULL DEFAULT 8 )"])
 
- (format=
-  {:ql/type :pg/create-table
-   :table-name "mytable"
-   :columns {:id        [:uuid "not null"]
-             :version   [:uuid "not null"]
-             :cts       [:timestamptz "not null" :DEFAULT :current_timestamp]
-             :ts        [:timestamptz "not null" :DEFAULT :current_timestamp]
-             :status    [:resource_status "not null"]
-             :partition [:int "not null"]
-             :resource  [:jsonb "not null"]}}
-  ["CREATE TABLE mytable ( \"id\" uuid not null , \"version\" uuid not null , \"cts\" timestamptz not null DEFAULT current_timestamp , \"ts\" timestamptz not null DEFAULT current_timestamp , \"status\" resource_status not null , \"partition\" int not null , \"resource\" jsonb not null )"])
+    (format=
+     {:ql/type :pg/create-table
+      :table-name "mytable"
+      :columns {:ts          {:type "timestamp"       :default :current_timestamp :not-null true}
+                :meta_status {:type "resource_status" :default "created"          :not-null true}}}
+     ["CREATE TABLE mytable ( \"ts\" timestamp NOT NULL DEFAULT current_timestamp , \"meta_status\" resource_status NOT NULL DEFAULT [\"?\" \"created\"] )"]))
 
- (testing "default value"
-
-  (format=
-   {:ql/type :pg/create-table
-    :table-name :mytable
-    :columns {:a {:type "integer" :not-null true :default 8}}}
-   ["CREATE TABLE mytable ( \"a\" integer NOT NULL DEFAULT 8 )"])
-
-  (format=
-   {:ql/type :pg/create-table
-    :table-name "mytable"
-    :columns {:a {:type "integer" :not-null true :default 8}}}
-   ["CREATE TABLE mytable ( \"a\" integer NOT NULL DEFAULT 8 )"])
-
-  (format=
-   {:ql/type :pg/create-table
-    :table-name "mytable"
-    :columns {:ts          {:type "timestamp"       :default :current_timestamp :not-null true}
-              :meta_status {:type "resource_status" :default "created"          :not-null true}}}
-   ["CREATE TABLE mytable ( \"ts\" timestamp NOT NULL DEFAULT current_timestamp , \"meta_status\" resource_status NOT NULL DEFAULT [\"?\" \"created\"] )"])
-  )
-
- (testing "without columns"
-  (format=
-   {:ql/type :pg/create-table
-    :table-name "part"
-    :if-not-exists true
-    :partition-by {:method :range :expr :partition}
-    :partition-of "whole"
-    :for {:from 0 :to 400}}
-   ["CREATE TABLE IF NOT EXISTS part partition of whole for values from (0) to (400) partition by range ( partition )"]))
+  (testing "without columns"
+    (format=
+     {:ql/type :pg/create-table
+      :table-name "part"
+      :if-not-exists true
+      :partition-by {:method :range :expr :partition}
+      :partition-of "whole"
+      :for {:from 0 :to 400}}
+     ["CREATE TABLE IF NOT EXISTS part partition of whole for values from (0) to (400) partition by range ( partition )"]))
 
   (format=
    {:ql/type :pg/drop-table
@@ -765,7 +758,7 @@
 
 
   (format=
-   {:select ^{:pg/projection :everything }
+   {:select ^{:pg/projection :everything}
     {:state "archived"}
     :from   :archived}
    ["SELECT *, ? as state FROM archived" "archived"])
@@ -780,14 +773,14 @@
    {:ql/type :pg/insert-select
     :into :mytable
     :select {:select {:z :z :a "a" :b :b} :from :t}}
-   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT ? as a , b as b , z as z FROM t )"
+   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT z as z , ? as a , b as b FROM t )"
     "a"])
 
   (format=
    {:ql/type :pg/insert-select
     :into "mytable"
     :select {:select {:z :z :a "a" :b :b} :from :t}}
-   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT ? as a , b as b , z as z FROM t )"
+   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT z as z , ? as a , b as b FROM t )"
     "a"])
 
   (format=
@@ -798,7 +791,7 @@
                   :do {:set {:a :excluded.a}
                        :where [:= 1 2]}}}
 
-   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT ? as a , b as b , z as z FROM t ) ON CONFLICT ( id ) DO UPDATE SET a = excluded.a WHERE 1 = 2"
+   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT z as z , ? as a , b as b FROM t ) ON CONFLICT ( id ) DO UPDATE SET a = excluded.a WHERE 1 = 2"
     "a"])
 
   (format=
@@ -806,7 +799,7 @@
     :into :mytable
     :select {:select {:z :z :a "a" :b :b} :from :t}
     :on-conflict {:on [:id] :do :nothing}}
-   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT ? as a , b as b , z as z FROM t ) ON CONFLICT ( id ) DO NOTHING"
+   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT z as z , ? as a , b as b FROM t ) ON CONFLICT ( id ) DO NOTHING"
     "a"])
 
   (format=
@@ -814,21 +807,21 @@
     :into :mytable
     :select {:select {:z :z :a "a" :b :b} :from :t}
     :returning :*}
-   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT ? as a , b as b , z as z FROM t ) RETURNING *"
+   ["INSERT INTO mytable ( \"a\", \"b\", \"z\" ) ( SELECT z as z , ? as a , b as b FROM t ) RETURNING *"
     "a"])
 
   (format=
-    {:ql/type :pg/cte
-     :with {:_ctp {:ql/type :pg/select
+   {:ql/type :pg/cte
+    :with {:_ctp {:ql/type :pg/select
+                  :select {:a 1
+                           :b 2}}
+           :_ctp2 {:ql/type :pg/select
                    :select {:a 1
-                            :b 2}}
-            :_ctp2 {:ql/type :pg/select
-                    :select {:a 1
-                             :b 2}}}
-     :select {:ql/type :pg/select
-              :select :*
-              :from :_ctp}}
-    ["WITH _ctp AS MATERIALIZED ( SELECT 1 as a , 2 as b ) , _ctp2 AS MATERIALIZED ( SELECT 1 as a , 2 as b ) SELECT * FROM _ctp"])
+                            :b 2}}}
+    :select {:ql/type :pg/select
+             :select :*
+             :from :_ctp}}
+   ["WITH _ctp AS MATERIALIZED ( SELECT 1 as a , 2 as b ) , _ctp2 AS MATERIALIZED ( SELECT 1 as a , 2 as b ) SELECT * FROM _ctp"])
 
   (format=
    {:ql/type :pg/cte-recursive
@@ -836,8 +829,8 @@
                   :select {:a 1
                            :b 2}}
            :_ctp2 {:ql/type :pg/select
-                  :select {:a 1
-                           :b 2}}}
+                   :select {:a 1
+                            :b 2}}}
     :select {:ql/type :pg/select
              :select :*
              :from :_ctp}}
@@ -845,7 +838,7 @@
 
 
   (format=
-   [:|| :resource ^:pg/obj{:a 1}]
+   [:|| :resource ^:pg/obj {:a 1}]
    ["( resource ) || ( jsonb_build_object( 'a' , 1 ) )"])
 
   (format=
@@ -858,8 +851,7 @@
 
   (format=
    [:pg/jsonb_set :resource [:a :b :c] [:pg/param "pid"]]
-   ["jsonb_set( resource , '{a,b,c}' , ? )" "pid"]
-   )
+   ["jsonb_set( resource , '{a,b,c}' , ? )" "pid"])
 
   (format=
    [:pg/jsonb_string "String"]
@@ -909,8 +901,8 @@
             :value {:a 1 :b :x :c "str" :birthDate "1991-11-08"}
             :returning :*}
            ["INSERT INTO healthplan ( \"a\", \"b\", \"c\", \"birthDate\" ) VALUES ( 1 , x , ? , ? ) RETURNING *"
-           "str"
-           "1991-11-08"])
+            "str"
+            "1991-11-08"])
 
 
   (format= {:ql/type :pg/insert
@@ -923,7 +915,7 @@
            ["INSERT INTO healthplan ( \"a\", \"b\", \"c\" ) VALUES ( 1 , x , ? ) ON CONFLICT ( id ) DO UPDATE SET a = excluded.a WHERE 1 = 2 RETURNING *"
             "str"])
 
-  (format= [:resource|| ^:pg/obj{:a 1 :b 2}]
+  (format= [:resource|| ^:pg/obj {:a 1 :b 2}]
            ["resource || jsonb_build_object( 'a' , 1 , 'b' , 2 )"])
 
 
@@ -942,9 +934,9 @@
     :where   [:and
               [:= [:jsonb/->> :b.resource :status] "client.draft"]
               [:= [:jsonb/#>> :b.resource [:billing_master :id]] "132"]
-              ^:pg/op[:<=
-                      [:pg/cast [:jsonb/->> :b.resource :date] :date]
-                      [:pg/cast "2020-11-03" :date]]]
+              ^:pg/op [:<=
+                       [:pg/cast [:jsonb/->> :b.resource :date] :date]
+                       [:pg/cast "2020-11-03" :date]]]
     :for :update}
    ["SELECT id FROM BillingCase b WHERE ( b.resource ->> 'status' = ? AND b.resource #>> '{\"billing_master\",id}' = ? AND ( b.resource ->> 'date' )::date <= ( ? )::date ) FOR update"
     "client.draft"
@@ -1000,14 +992,13 @@
       :unit unit
       :order_id [:->> :b.resource :order_id]
       :price [:numeric [:->> :b.resource :price]]
-      :patient_mrn [:pg/nth ^:pg/fn[:knife_extract_text :pt.resource [:pg/jsonb [[:identifier {:system "mrn"} :value]]]] 1]
+      :patient_mrn [:pg/nth ^:pg/fn [:knife_extract_text :pt.resource [:pg/jsonb [[:identifier {:system "mrn"} :value]]]] 1]
       :charge [:* [:numeric [:->> :p.resource :price]] unit]
       :ref_prov_npi  [:#>> :b.resource [:referring_provider :id]]
       :ref_prov_name [:#>> :b.resource [:referring_provider :display]]
       :patient_name [:#>> :b.resource [:patient :display]]})
    ["jsonb_build_object( 'date' , ( b.resource ->> 'date' ) , 'unit' , COALESCE( ( ( b.resource ->> 'units' ) )::int , 1 ) , 'specimen' , ( b.resource #>> '{codes,cpt,display}' ) , 'patient_mrn' , ( knife_extract_text( pt.resource , '[[\"identifier\",{\"system\":\"mrn\"},\"value\"]]' ) )[ 1 ] , 'ref_prov_name' , ( b.resource #>> '{\"referring_provider\",display}' ) , 'charge' , ( ( ( p.resource ->> 'price' ) )::numeric ) * ( COALESCE( ( ( b.resource ->> 'units' ) )::int , 1 ) ) , 'ordering_organization_name' , ( ordering_org.resource #>> '{name}' ) , 'order_id' , ( b.resource ->> 'order_id' ) , 'patient_name' , ( b.resource #>> '{patient,display}' ) , 'id' , b.id , 'case' , jsonb_build_object( 'id' , b.id , 'resourceType' , ?::text ) , 'price' , ( ( b.resource ->> 'price' ) )::numeric , 'cpt' , ( b.resource #>> '{codes,cpt,code}' ) , 'ref_prov_npi' , ( b.resource #>> '{\"referring_provider\",id}' ) )"
-    "BillingCase"]
-   )
+    "BillingCase"])
 
   (format=
    {:ql/type :pg/select
@@ -1021,15 +1012,15 @@
     "5"])
 
   (format=
-    {:ql/type :pg/select
-     :select 1
-     :union-all {:test {:ql/type :pg/sub-select
-                        :select "2"}
-                 :best {:ql/type :pg/sub-select
-                        :select "5"}}}
-    ["SELECT 1 UNION ALL ( SELECT ? )  /* test */  UNION ALL ( SELECT ? )  /* best */ "
-     "2"
-     "5"])
+   {:ql/type :pg/select
+    :select 1
+    :union-all {:test {:ql/type :pg/sub-select
+                       :select "2"}
+                :best {:ql/type :pg/sub-select
+                       :select "5"}}}
+   ["SELECT 1 UNION ALL ( SELECT ? )  /* test */  UNION ALL ( SELECT ? )  /* best */ "
+    "2"
+    "5"])
 
   (format=
    {:ql/type :pg/select
@@ -1051,54 +1042,54 @@
    ["SELECT DISTINCT( id ) FROM best"])
 
   (format=
-    {:ql/type :pg/select
-     :select
-     ^{:pg/projection {:distinct-on [:id :txid]}}
-     {:id       :id
-      :resource :resource
-      :txid     :txid}
-     :from :best}
-    ["SELECT DISTINCT ON ( id , txid ) id as id , resource as resource , txid as txid FROM best"])
+   {:ql/type :pg/select
+    :select
+    ^{:pg/projection {:distinct-on [:id :txid]}}
+    {:id       :id
+     :resource :resource
+     :txid     :txid}
+    :from :best}
+   ["SELECT DISTINCT ON ( id , txid ) id as id , resource as resource , txid as txid FROM best"])
 
   (format=
-    {:ql/type :pg/select
-     :select
-     ^{:pg/projection {:distinct-on [:id]}}
-     {:id       :id
-      :resource :resource
-      :txid     :txid}
-     :from :best}
-    ["SELECT DISTINCT ON ( id ) id as id , resource as resource , txid as txid FROM best"])
+   {:ql/type :pg/select
+    :select
+    ^{:pg/projection {:distinct-on [:id]}}
+    {:id       :id
+     :resource :resource
+     :txid     :txid}
+    :from :best}
+   ["SELECT DISTINCT ON ( id ) id as id , resource as resource , txid as txid FROM best"])
 
   (format=
-    {:ql/type :pg/select
-     :select
-     ^{:pg/projection {:distinct-on [[:#>> :resource [:id]]]}}
-     {:id       :id
-      :resource :resource
-      :txid     :txid}
-     :from :best}
-    ["SELECT DISTINCT ON ( ( resource #>> '{id}' ) ) id as id , resource as resource , txid as txid FROM best"])
+   {:ql/type :pg/select
+    :select
+    ^{:pg/projection {:distinct-on [[:#>> :resource [:id]]]}}
+    {:id       :id
+     :resource :resource
+     :txid     :txid}
+    :from :best}
+   ["SELECT DISTINCT ON ( ( resource #>> '{id}' ) ) id as id , resource as resource , txid as txid FROM best"])
 
   (format=
-    {:ql/type :pg/select
-     :select
-     ^{:pg/projection :distinct}
-     {:id       :id
-      :resource :resource
-      :txid     :txid}
-     :from :best}
-    ["SELECT DISTINCT id as id , resource as resource , txid as txid FROM best"])
+   {:ql/type :pg/select
+    :select
+    ^{:pg/projection :distinct}
+    {:id       :id
+     :resource :resource
+     :txid     :txid}
+    :from :best}
+   ["SELECT DISTINCT id as id , resource as resource , txid as txid FROM best"])
 
   (format=
-    {:ql/type :pg/select
-     :select
-     ^{:pg/projection :all}
-     {:id       :id
-      :resource :resource
-      :txid     :txid}
-     :from :best}
-    ["SELECT ALL id as id , resource as resource , txid as txid FROM best"])
+   {:ql/type :pg/select
+    :select
+    ^{:pg/projection :all}
+    {:id       :id
+     :resource :resource
+     :txid     :txid}
+    :from :best}
+   ["SELECT ALL id as id , resource as resource , txid as txid FROM best"])
 
 
   (format=
@@ -1147,28 +1138,28 @@
 
 
   (format=
-    {:ql/type :pg/values
-     :values [1 2 3]}
-    ["VALUES ( 1 ) , ( 2 ) , ( 3 )"])
+   {:ql/type :pg/values
+    :values [1 2 3]}
+   ["VALUES ( 1 ) , ( 2 ) , ( 3 )"])
 
   (format=
-    {:ql/type :pg/values
-     :keys [:foo :baz]
-     :values [{:foo 1
-               :baz 2}
-              {:foo 3
-               :baz 4}]}
-    ["VALUES ( 1 , 2 ) , ( 3 , 4 )"])
+   {:ql/type :pg/values
+    :keys [:foo :baz]
+    :values [{:foo 1
+              :baz 2}
+             {:foo 3
+              :baz 4}]}
+   ["VALUES ( 1 , 2 ) , ( 3 , 4 )"])
 
   (format=
-    {:select :*
-     :from {:_values {:ql/type :pg/values
-                      :keys [:foo :baz]
-                      :values [{:foo 1
-                                :baz 2}
-                               {:foo 3
-                                :baz 4}]}}}
-    ["SELECT * FROM ( VALUES ( 1 , 2 ) , ( 3 , 4 ) ) _values ( foo , baz )"])
+   {:select :*
+    :from {:_values {:ql/type :pg/values
+                     :keys [:foo :baz]
+                     :values [{:foo 1
+                               :baz 2}
+                              {:foo 3
+                               :baz 4}]}}}
+   ["SELECT * FROM ( VALUES ( 1 , 2 ) , ( 3 , 4 ) ) _values ( foo , baz )"])
 
   (format=
    {:ql/type :pg/insert-many
@@ -1195,18 +1186,18 @@
 
 
   (format=
-    [:pg/jsonb-path-query-array :resource [:pg/cast [:pg/param "$.foo[*]"] :jsonpath]]
-    ["jsonb_path_query_array( resource , ( ? )::jsonpath )"
-     "$.foo[*]"])
+   [:pg/jsonb-path-query-array :resource [:pg/cast [:pg/param "$.foo[*]"] :jsonpath]]
+   ["jsonb_path_query_array( resource , ( ? )::jsonpath )"
+    "$.foo[*]"])
 
 
   (format=
-    [:pg/call :foobar]
-    ["foobar( )"])
+   [:pg/call :foobar]
+   ["foobar( )"])
 
   (format=
-    [:pg/call :foobar :resource]
-    ["foobar( resource )"])
+   [:pg/call :foobar :resource]
+   ["foobar( resource )"])
 
   (format=
    [:pg/call :foobar :resource "baz" "quux"]
@@ -1219,12 +1210,12 @@
    ["SELECT ( price ) - ( diff ) FROM my_db"])
 
   (format=
-    [:pg/build-sql-str ["" :resource "#>>" "'{foo, bar}' =" [:pg/param "baz"]]]
-    [" resource#>>'{foo, bar}' = ?" "baz"])
+   [:pg/build-sql-str ["" :resource "#>>" "'{foo, bar}' =" [:pg/param "baz"]]]
+   [" resource#>>'{foo, bar}' = ?" "baz"])
 
   (format=
-    {:select [:pg/build-sql-str ["ARRAY[" :resource "#>>" "'{foo, bar}' =" [:pg/param "baz"] "]"]]}
-    ["SELECT ARRAY[ resource#>>'{foo, bar}' = ? ]" "baz"])
+   {:select [:pg/build-sql-str ["ARRAY[" :resource "#>>" "'{foo, bar}' =" [:pg/param "baz"] "]"]]}
+   ["SELECT ARRAY[ resource#>>'{foo, bar}' = ? ]" "baz"])
 
   (format=
    {:ql/type :pg/create-extension
@@ -1279,21 +1270,20 @@
    ["CREATE TABLE table1 AS SELECT 1"])
 
   (format=
-    {:ql/type :pg/create-table-as
-     :table "table1"
-     :if-not-exists true
-     :select {:ql/type :pg/select
-              :select 1}}
-    ["CREATE TABLE IF NOT EXISTS table1 AS SELECT 1"])
+   {:ql/type :pg/create-table-as
+    :table "table1"
+    :if-not-exists true
+    :select {:ql/type :pg/select
+             :select 1}}
+   ["CREATE TABLE IF NOT EXISTS table1 AS SELECT 1"])
 
   (format=
-    {:ql/type :pg/index
-     :index   :sdl_src_dst
-     :unique  true
-     :on      :sdl_src_dst
-     :expr    [:src :dst]
-     }
-    ["CREATE UNIQUE INDEX IF NOT EXISTS sdl_src_dst ON sdl_src_dst ( ( src ) , ( dst ) )"])
+   {:ql/type :pg/index
+    :index   :sdl_src_dst
+    :unique  true
+    :on      :sdl_src_dst
+    :expr    [:src :dst]}
+   ["CREATE UNIQUE INDEX IF NOT EXISTS sdl_src_dst ON sdl_src_dst ( ( src ) , ( dst ) )"])
 
   (format=
    {:ql/type :pg/select
@@ -1302,4 +1292,160 @@
     :where [:pg/include-op ^:pg/fn [:extract_and_normalize_phones :resource] [:pg/array-constructor [^:pg/fn [:mpi.fn "+1783688978"]]]]}
    ["SELECT * FROM patient WHERE extract_and_normalize_phones( resource ) @> array[ mpi.fn( ? ) ]" "+1783688978"])
 
-  )
+  (testing "CREATE FUNCTION"
+    (format=
+     {:ql/type :pg/create-function
+      :name :my_function
+      :args "a integer, b integer"
+      :returns "integer"
+      :language "sql"
+      :body "SELECT a + b;"}
+     ["CREATE FUNCTION my_function (a integer, b integer) RETURNS integer LANGUAGE sql AS 'SELECT a + b;'"])
+
+    (format=
+     {:ql/type :pg/create-function
+      :name :my_function
+      :args "a integer, b integer"
+      :returns "integer"
+      :language "sql"
+      :body "SELECT a + b;"
+      :replace true}
+     ["CREATE OR REPLACE FUNCTION my_function (a integer, b integer) RETURNS integer LANGUAGE sql AS 'SELECT a + b;'"])
+
+    (format=
+     {:ql/type :pg/create-function
+      :name :get_patient_name
+      :args "patient_id text"
+      :returns "text"
+      :language "plpgsql"
+      :body "BEGIN RETURN (SELECT name FROM patients WHERE id = patient_id); END;"}
+     ["CREATE FUNCTION get_patient_name (patient_id text) RETURNS text LANGUAGE plpgsql AS 'BEGIN RETURN (SELECT name FROM patients WHERE id = patient_id); END;'"])
+
+    (format=
+     {:ql/type :pg/create-function
+      :name :my_function
+      :args [[:a :integer] [:b :integer]]
+      :returns "integer"
+      :language "sql"
+      :body "SELECT a + b;"}
+     ["CREATE FUNCTION my_function (a integer, b integer) RETURNS integer LANGUAGE sql AS 'SELECT a + b;'"])
+
+    (format=
+     {:ql/type :pg/create-function
+      :name :my_function
+      :args {:a :integer :b :integer}
+      :returns "integer"
+      :language "sql"
+      :body "SELECT a + b;"}
+     ["CREATE FUNCTION my_function (a integer, b integer) RETURNS integer LANGUAGE sql AS 'SELECT a + b;'"])
+
+    (format=
+     {:ql/type :pg/create-function
+      :name :get_patient_name
+      :args [[:patient_id :text]]
+      :returns "text"
+      :language "plpgsql"
+      :body "BEGIN RETURN (SELECT name FROM patients WHERE id = patient_id); END;"}
+     ["CREATE FUNCTION get_patient_name (patient_id text) RETURNS text LANGUAGE plpgsql AS 'BEGIN RETURN (SELECT name FROM patients WHERE id = patient_id); END;'"])
+
+    (format=
+     {:ql/type :pg/create-function
+      :name :calculate
+      :args {:left_patient_id "text" :right_patient_id "text"}
+      :returns "jsonb"
+      :language "plpgsql"
+      :replace true
+      :body "BEGIN RETURN jsonb_build_object('result', 'ok'); END;"}
+     ["CREATE OR REPLACE FUNCTION calculate (left_patient_id text, right_patient_id text) RETURNS jsonb LANGUAGE plpgsql AS 'BEGIN RETURN jsonb_build_object(''result'', ''ok''); END;'"])
+
+    (testing "Invalid args format throws exception"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"Invalid :args format for :pg/create-function"
+                            (sut/format {:ql/type :pg/create-function
+                                         :name :my_function
+                                         :args 123
+                                         :returns "integer"
+                                         :language "sql"
+                                         :body "SELECT 1;"})))
+      (let [ex (try
+                 (sut/format {:ql/type :pg/create-function
+                              :name :my_function
+                              :args 123
+                              :returns "integer"
+                              :language "sql"
+                              :body "SELECT 1;"})
+                 (catch clojure.lang.ExceptionInfo e e))]
+        (is (= :invalid-args-format (:code (ex-data ex))))
+        (is (= :pg/create-function (:ql/type (ex-data ex))))
+        (is (= 123 (:args (ex-data ex)))))))
+
+  (testing "CREATE FUNCTION with DSQL body"
+    ;; Test function with RETURN statement
+    (format=
+     {:ql/type :pg/create-function
+      :name :add_numbers
+      :args [[:a :integer] [:b :integer]]
+      :returns "integer"
+      :language "plpgsql"
+      :body {:ql/type :pg/plpgsql-body
+             :statements [{:ql/type :pg/return
+                           :return [:+ :a :b]}]}}
+     ["CREATE FUNCTION add_numbers (a integer, b integer) RETURNS integer LANGUAGE plpgsql AS $$ BEGIN RETURN ( a ) + ( b ) ; END $$"])
+
+    ;; Test function with DECLARE and RETURN
+    (format=
+     {:ql/type :pg/create-function
+      :name :calculate_total
+      :args [[:price :numeric] [:quantity :integer]]
+      :returns "numeric"
+      :language "plpgsql"
+      :body {:ql/type :pg/plpgsql-body
+             :declare [[:total :numeric]]
+             :statements [{:ql/type :pg/return
+                           :return [:* :price :quantity]}]}}
+     ["CREATE FUNCTION calculate_total (price numeric, quantity integer) RETURNS numeric LANGUAGE plpgsql AS $$ DECLARE total :numeric; BEGIN RETURN ( price ) * ( quantity ) ; END $$"])
+
+    ;; Test function with SELECT INTO
+    (format=
+     {:ql/type :pg/create-function
+      :name :get_patient_name
+      :args [[:patient_id :text]]
+      :returns "text"
+      :language "plpgsql"
+      :body {:ql/type :pg/plpgsql-body
+             :declare [[:patient_name :text]]
+             :statements [{:ql/type :pg/select-into
+                           :select :name
+                           :into [:patient_name]
+                           :from :patients
+                           :where [:= :id :patient_id]}
+                          {:ql/type :pg/return
+                           :return :patient_name}]}}
+     ["CREATE FUNCTION get_patient_name (patient_id text) RETURNS text LANGUAGE plpgsql AS $$ DECLARE patient_name :text; BEGIN SELECT name FROM patients WHERE id = patient_id INTO patient_name ; RETURN patient_name ; END $$"])
+
+    ;; Test function with multiple SELECT INTO statements
+    (format=
+     {:ql/type :pg/create-function
+      :name :get_patient_info
+      :args [[:pid :text]]
+      :returns "jsonb"
+      :language "plpgsql"
+      :replace true
+      :body {:ql/type :pg/plpgsql-body
+             :declare [[:pname :text]
+                       [:page :integer]]
+             :statements [{:ql/type :pg/select-into
+                           :select :name
+                           :into [:pname]
+                           :from :patients
+                           :where [:= :id :pid]}
+                          {:ql/type :pg/select-into
+                           :select :age
+                           :into [:page]
+                           :from :patients
+                           :where [:= :id :pid]}
+                          {:ql/type :pg/return
+                           :return {:ql/type :pg/obj
+                                    :name :pname
+                                    :age :page}}]}}
+     ["CREATE OR REPLACE FUNCTION get_patient_info (pid text) RETURNS jsonb LANGUAGE plpgsql AS $$ DECLARE pname :text; page :integer; BEGIN SELECT name FROM patients WHERE id = pid INTO pname ; SELECT age FROM patients WHERE id = pid INTO page ; RETURN jsonb_build_object( 'name' , pname , 'age' , page ) ; END $$"])))

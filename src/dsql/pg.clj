@@ -5,7 +5,7 @@
   (:import [com.fasterxml.jackson.databind.node  ObjectNode ArrayNode TextNode IntNode BooleanNode DoubleNode LongNode]
            [com.fasterxml.jackson.databind       JsonNode ObjectMapper]
            [java.util     Iterator])
-  (:refer-clojure :exclude [format]))
+  (:refer-clojure :exclude [format declare]))
 
 (def keywords
   #{:A :ABORT :ABS :ABSENT :ABSOLUTE :ACCESS :ACCORDING :ACOS
@@ -605,7 +605,6 @@
 
         data (with-meta data (dissoc data-meta :pg/projection))]
     (->> (dissoc data :ql/type)
-         (sort-by first)
          (ql/reduce-separated "," acc
                               (fn [acc [k node]]
                                 (-> acc
@@ -1804,6 +1803,91 @@
       (conj "FOR"  (name user))
       (conj "SERVER" (name server))
       (cond-> options (conj "OPTIONS" "(" (mk-options options) ")"))))
+
+(defmethod ql/to-sql :pg/select-into
+  [acc opts {:keys [into] :as node}]
+  (-> acc
+      (ql/to-sql opts (ql/default-type (dissoc node :into :ql/type) :pg/select))
+      (conj "INTO")
+      (conj (->> into
+                 (map name)
+                 (str/join ", ")))))
+
+(defmethod ql/to-sql :pg/return
+  [acc opts {:keys [return]}]
+  (-> acc
+      (conj "RETURN")
+      (ql/to-sql opts return)))
+
+(defmethod ql/to-sql :pg/plpgsql-body
+  [acc opts {:keys [declare statements]}]
+  (let [acc (if (seq declare)
+              (-> acc
+                  (conj "DECLARE")
+                  (into (map (fn [[var-name var-type]]
+                               (str (name var-name) " " var-type ";"))
+                             declare)))
+              acc)
+        acc (conj acc "BEGIN")
+        acc (reduce (fn [acc stmt]
+                      (-> acc
+                          (ql/to-sql opts stmt)
+                          (conj ";")))
+                    acc
+                    statements)]
+    (conj acc "END")))
+
+(defn- format-function-args
+  "Format function arguments from vector or map format to SQL string.
+  Supports:
+  - Vector: [[name1 type1] [name2 type2] ...]
+  - Map: {name1 type1 name2 type2 ...}"
+  [args]
+  (cond
+    (string? args) args
+    (or (vector? args) (map? args))
+    (->> args
+         (map (fn [[arg-name arg-type]]
+                (str (name arg-name) " " (name arg-type))))
+         (str/join ", "))
+    :else (throw (ex-info "Invalid :args format for :pg/create-function"
+                          {:ql/type :pg/create-function
+                           :code :invalid-args-format
+                           :args args}))))
+
+(defn- format-table-return-type
+  "Format RETURNS TABLE(...) clause from a table return type spec"
+  [{:keys [columns]}]
+  (let [formatted-columns (mapv (fn [[col-name col-type]]
+                                   (str (name col-name) " " (name col-type)))
+                                 columns)]
+    (str "TABLE(" (clojure.string/join ", " formatted-columns) ")")))
+
+(defmethod ql/to-sql :pg/create-function
+  [acc opts {:keys [name args returns language body replace volatility] :as node}]
+  (let [returns-str (cond
+                      (string? returns) returns
+                      (and (map? returns) (= :pg/table (:ql/type returns)))
+                      (format-table-return-type returns)
+                      :else returns)
+        acc (-> acc
+                (conj "CREATE")
+                (cond-> replace (conj "OR REPLACE"))
+                (conj "FUNCTION")
+                (conj (clojure.core/name name))
+                (conj (str "(" (format-function-args args) ")"))
+                (cond-> returns-str (conj "RETURNS" returns-str))
+                (cond-> language (conj "LANGUAGE" language))
+                (cond-> volatility (conj (clojure.string/upper-case volatility)))
+                (conj "AS"))]
+    (if body
+      (if (string? body)
+        (conj acc (ql/string-litteral body))
+        (-> acc
+            (conj "$$")
+            (ql/to-sql opts body)
+            (conj "$$")))
+      acc)))
 
 (defn parse-param
   "Use keyword as a value if you don't want to make it a parameter."

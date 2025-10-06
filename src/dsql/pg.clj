@@ -121,6 +121,7 @@
    [:select-distinct :pg/projection]
    [:from :pg/from]
    [:left-join-lateral :pg/join-lateral]
+   [:cross-join-lateral :pg/cross-join-lateral]
    [:left-join :pg/left-join]
    [:left-outer-join :pg/left-outer-join]
    [:join :pg/join]
@@ -313,6 +314,18 @@
               (conj ")")
               (conj (name k) "ON")
               (ql/to-sql opts (ql/default-type (:on v) :pg/and)))))))
+
+(defmethod ql/to-sql
+  :pg/cross-join-lateral
+  [acc opts data]
+  (->> (dissoc data :ql/type)
+       (filter (fn [[k v]] (not (nil? v))))
+       (ql/reduce-separated
+        "CROSS JOIN LATERAL" acc
+        (fn [acc [k v]]
+          (-> acc
+              (ql/to-sql opts v)
+              (conj (name k)))))))
 
 (defmethod ql/to-sql
   :pg/count*

@@ -1631,6 +1631,17 @@
         ")"))
 
 (defmethod ql/to-sql
+  :pg/jsonb-path-query-first
+  [acc opts [_ & exprs]]
+  (conj (ql/reduce-separated ","
+                             (conj acc "jsonb_path_query_first(")
+                             (fn [acc expr]
+                               (-> acc
+                                   (ql/to-sql opts expr)))
+                             exprs)
+        ")"))
+
+(defmethod ql/to-sql
   :pg/call
   [acc opts [_ f & exprs]]
   (conj (ql/reduce-separated ","

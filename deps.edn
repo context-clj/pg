@@ -6,8 +6,8 @@
         org.postgresql/postgresql                   {:mvn/version "42.5.4"}
         com.zaxxer/HikariCP                         {:mvn/version "6.2.1"}
         com.github.seancorfield/next.jdbc           {:mvn/version "1.2.780"}
-        com.fasterxml.jackson.core/jackson-core     {:mvn/version "2.13.5"}
-        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.5"}
+        com.fasterxml.jackson.core/jackson-core     {:mvn/version "2.15.0"}
+        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.0"}
         healthsamurai/matcho                        {:mvn/version "0.3.8"}
 
         context/system                              {:git/url "https://github.com/context-clj/system.git"
